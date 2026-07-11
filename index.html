@@ -1352,9 +1352,9 @@
 
         <!-- Onglets -->
         <div class="agenda-tabs">
-          <button class="agenda-tab active" data-agenda="reservations">Réservations</button>
-          <button class="agenda-tab" data-agenda="disponibilites">Disponibilités</button>
-          <button class="agenda-tab" data-agenda="types">Types de séances</button>
+          <button class="agenda-tab active" data-agenda="reservations" onclick="switchAgendaTab('reservations')">Réservations</button>
+          <button class="agenda-tab" data-agenda="disponibilites" onclick="switchAgendaTab('disponibilites')">Disponibilités</button>
+          <button class="agenda-tab" data-agenda="types" onclick="switchAgendaTab('types')">Types de séances</button>
         </div>
 
         <!-- Onglet Réservations -->
@@ -2884,23 +2884,22 @@ async function renderAgenda(){
   el('copyLinkBtn').onclick = () => {
     navigator.clipboard.writeText(url).then(() => showToast('Lien copié !'));
   };
-
-  document.querySelectorAll('.agenda-tab').forEach(tab => {
-    tab.onclick = () => {
-      agendaTab = tab.dataset.agenda;
-      document.querySelectorAll('.agenda-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      ['reservations','disponibilites','types'].forEach(s => {
-        el('agenda-' + s).classList.toggle('hidden', s !== agendaTab);
-      });
-      if(agendaTab === 'disponibilites') loadDisponibilites();
-      if(agendaTab === 'types') loadSessionTypes();
-      if(agendaTab === 'reservations') loadReservations();
-    };
-  });
-
   el('resaFilter').onchange = loadReservations;
-  loadReservations();
+  switchAgendaTab('reservations');
+}
+
+function switchAgendaTab(tab){
+  agendaTab = tab;
+  document.querySelectorAll('.agenda-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.agenda === tab);
+  });
+  ['reservations','disponibilites','types'].forEach(s => {
+    const section = el('agenda-' + s);
+    if(section) section.classList.toggle('hidden', s !== tab);
+  });
+  if(tab === 'reservations') loadReservations();
+  if(tab === 'disponibilites') loadDisponibilites();
+  if(tab === 'types') loadSessionTypes();
 }
 
 /* --- Réservations --- */
