@@ -308,7 +308,7 @@ async function loadSlots(date) {
       headers: { "Authorization": `Bearer ${SUPABASE_ANON}`, "apikey": SUPABASE_ANON }
     });
     const data = await r.json();
-    state.availableSlots = data.slots || [];
+    state.availableSlots = (data.slots || []).map(s => typeof s === "string" ? {time: s, remaining: 1} : s);
     renderSlots(date, data.timezone);
   } catch(e) {
     app.innerHTML = `<div style="text-align:center;padding:40px;color:var(--soft);">Erreur de chargement. Réessaie.</div>`;
@@ -333,7 +333,13 @@ function renderSlots(date, timezone) {
         ${state.availableSlots.length === 0
           ? `<p style="color:var(--soft);font-size:13.5px;">Aucun créneau disponible ce jour. <a href="#" onclick="state.selectedDate=null;renderCalendar();return false;" style="color:var(--orange);">Choisir une autre date</a></p>`
           : `<div class="slots-grid" id="slotsGrid">
-              ${state.availableSlots.map(s => `<div class="slot" data-slot="${s}">${s}</div>`).join("")}
+              ${state.availableSlots.map(s => {
+                const isGroup = s.remaining > 1;
+                return `<div class="slot" data-slot="${s.time}" data-remaining="${s.remaining}">
+                  ${s.time}
+                  ${isGroup ? `<span style="display:block;font-size:10px;font-weight:600;opacity:0.8;">${s.remaining} place${s.remaining > 1 ? 's' : ''}</span>` : ''}
+                </div>`;
+              }).join("")}
             </div>
             ${timezone ? `<p style="font-size:11px;color:var(--soft);margin-top:10px;">Horaires en ${timezone}</p>` : ""}`
         }
@@ -344,6 +350,7 @@ function renderSlots(date, timezone) {
   document.querySelectorAll(".slot").forEach(btn => {
     btn.onclick = () => {
       state.selectedSlot = btn.dataset.slot;
+      state.selectedSlotRemaining = parseInt(btn.dataset.remaining) || 1;
       renderForm();
     };
   });
@@ -362,6 +369,7 @@ function renderForm() {
     <div class="recap">
       <strong>${state.selectedType.nom}</strong><br>
       ${dateLabel} · ${state.selectedSlot} – ${endTime}
+      ${state.selectedSlotRemaining > 1 ? `<br><span style="color:var(--orange);font-size:12px;font-weight:700;">${state.selectedSlotRemaining} place${state.selectedSlotRemaining > 1 ? 's' : ''} disponible${state.selectedSlotRemaining > 1 ? 's' : ''}</span>` : ''}
     </div>
 
     <div class="card">

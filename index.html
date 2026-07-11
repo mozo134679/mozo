@@ -1406,6 +1406,15 @@
               <div><label>Nom *</label><input type="text" id="f-type-nom" placeholder="Ex. Coaching vocal"></div>
               <div><label>Durée (min) *</label><input type="number" id="f-type-duree" placeholder="60" min="15" step="15"></div>
             </div>
+            <div class="form-row">
+              <div>
+                <label>Capacité <span style="font-weight:400;color:var(--brown-soft);font-size:11px;">(places par créneau)</span></label>
+                <input type="number" id="f-type-capacite" placeholder="1" min="1" value="1">
+              </div>
+              <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
+                <span style="font-size:12.5px;color:var(--brown-soft);line-height:1.5;">1 = individuel · 2+ = collectif/groupe</span>
+              </div>
+            </div>
             <div><label>Description</label><textarea id="f-type-desc" placeholder="Brève description pour les élèves…"></textarea></div>
             <div class="form-actions">
               <button class="btn-cancel" id="cancelTypeBtn">Annuler</button>
@@ -2901,6 +2910,24 @@ function switchAgendaTab(tab){
   if(tab === 'disponibilites') loadDisponibilites();
   if(tab === 'types') loadSessionTypes();
 }
+window.switchAgendaTab = switchAgendaTab;
+window.toggleDispo = (i) => {
+  dispoState[i].on = !dispoState[i].on;
+  document.getElementById('toggle-'+i).classList.toggle('on', dispoState[i].on);
+  document.getElementById('debut-'+i).disabled = !dispoState[i].on;
+  document.getElementById('fin-'+i).disabled = !dispoState[i].on;
+};
+window.cancelResa = async (id, nom) => {
+  if(!confirm(`Annuler la réservation de ${nom} ?`)) return;
+  try{
+    const { error } = await sb.from('reservations').update({ statut: 'annulee' }).eq('id', id);
+    if(error) throw error;
+    showToast('Réservation annulée');
+    loadReservations();
+  }catch(err){ showToast('Erreur : ' + err.message, true); }
+};
+window.editType = (id) => editType(id);
+window.deleteType = (id, nom) => deleteType(id, nom);
 
 /* --- Réservations --- */
 async function loadReservations(){
@@ -3041,29 +3068,30 @@ async function loadSessionTypes(){
   if(error){ showToast('Erreur : ' + error.message, true); return; }
   sessionTypesList = data || [];
 
-  if(sessionTypesList.length === 0 && !el('typeForm').classList.contains('hidden') === false){
-    // Créer les types par défaut si aucun
-  }
-
   el('typesList').innerHTML = sessionTypesList.length === 0
     ? '<div class="lib-empty">Aucun type de séance. Ajoute ton premier type ci-dessus.</div>'
-    : sessionTypesList.map(t => `
-      <div class="type-card">
-        <div>
-          <div class="type-nom">${escapeHtml(t.nom)}</div>
-          <div class="type-meta">${t.duree_minutes} min${t.description ? ' · ' + escapeHtml(t.description) : ''}${!t.actif ? ' · <span style="color:var(--brown-soft);">Inactif</span>' : ''}</div>
-        </div>
-        <div class="resa-actions">
-          <button class="resa-btn" onclick="editType('${t.id}')">✎</button>
-          <button class="resa-btn danger" onclick="deleteType('${t.id}','${escapeHtml(t.nom)}')">✕</button>
-        </div>
-      </div>`).join('');
+    : sessionTypesList.map(t => {
+        const capaciteLabel = (t.capacite||1) > 1
+          ? `<span class="tag" style="font-size:10px;margin-left:6px;">Groupe · ${t.capacite} places</span>`
+          : '';
+        return `<div class="type-card">
+          <div>
+            <div class="type-nom">${escapeHtml(t.nom)}${capaciteLabel}</div>
+            <div class="type-meta">${t.duree_minutes} min${t.description ? ' · ' + escapeHtml(t.description) : ''}${!t.actif ? ' · <span style="color:var(--brown-soft);">Inactif</span>' : ''}</div>
+          </div>
+          <div class="resa-actions">
+            <button class="resa-btn" onclick="editType('${t.id}')">✎</button>
+            <button class="resa-btn danger" onclick="deleteType('${t.id}','${escapeHtml(t.nom)}')">✕</button>
+          </div>
+        </div>`;
+      }).join('');
 }
 
 el('newTypeBtn').onclick = () => {
   editingTypeId = null;
   el('f-type-nom').value = '';
   el('f-type-duree').value = '';
+  el('f-type-capacite').value = '1';
   el('f-type-desc').value = '';
   el('saveTypeBtn').textContent = 'Enregistrer';
   el('typeForm').classList.remove('hidden');
@@ -3076,6 +3104,7 @@ function editType(id){
   editingTypeId = id;
   el('f-type-nom').value = t.nom;
   el('f-type-duree').value = t.duree_minutes;
+  el('f-type-capacite').value = t.capacite || 1;
   el('f-type-desc').value = t.description || '';
   el('saveTypeBtn').textContent = 'Mettre à jour';
   el('typeForm').classList.remove('hidden');
@@ -3085,8 +3114,9 @@ function editType(id){
 el('saveTypeBtn').onclick = async () => {
   const nom = el('f-type-nom').value.trim();
   const duree = parseInt(el('f-type-duree').value);
+  const capacite = parseInt(el('f-type-capacite').value) || 1;
   if(!nom || !duree){ showToast('Nom et durée sont requis.', true); return; }
-  const payload = { nom, duree_minutes: duree, description: el('f-type-desc').value.trim() || null };
+  const payload = { nom, duree_minutes: duree, capacite, description: el('f-type-desc').value.trim() || null };
   try{
     if(editingTypeId){
       const { error } = await sb.from('session_types').update(payload).eq('id', editingTypeId);
