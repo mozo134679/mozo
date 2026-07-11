@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Réserver une séance — mɔzɔ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=chillax@600,700&display=swap">
+<style>
+  :root{
+    --orange:#C2592D;--brown:#3E2C23;--cream:#F6EEE0;--bg:#FAF8F6;
+    --soft:#8B8079;--border:#ECEAE9;--radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--brown);min-height:100vh;}
+  header{background:#fff;border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;}
+  header img{height:28px;}
+  .container{max-width:560px;margin:40px auto;padding:0 16px 60px;}
+  h1{font-family:'Chillax',sans-serif;font-size:22px;margin-bottom:6px;}
+  .subtitle{font-size:14px;color:var(--soft);margin-bottom:28px;}
+  .card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;margin-bottom:20px;}
+  .card-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .card-head h2{font-family:'Chillax',sans-serif;font-size:16px;}
+  .step-badge{font-size:11px;font-weight:700;background:var(--orange);color:var(--cream);border-radius:999px;padding:3px 10px;}
+  .card-body{padding:16px 20px;}
+  .type-option{
+    padding:14px 16px;border-radius:10px;border:1px solid var(--border);cursor:pointer;
+    margin-bottom:8px;transition:border-color .15s,background .15s;display:flex;justify-content:space-between;align-items:center;
+  }
+  .type-option:hover,.type-option.selected{border-color:var(--orange);background:rgba(194,89,45,0.05);}
+  .type-option .nom{font-weight:700;font-size:14px;}
+  .type-option .duree{font-size:12px;color:var(--soft);}
+  .type-option .desc{font-size:12.5px;color:var(--soft);margin-top:3px;}
+
+  /* Mini calendrier */
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .cal-nav h3{font-family:'Chillax',sans-serif;font-size:15px;}
+  .cal-nav-btn{background:none;border:1px solid var(--border);border-radius:7px;padding:5px 11px;cursor:pointer;font-size:13px;color:var(--brown);}
+  .cal-nav-btn:hover{border-color:var(--orange);}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-weekday{text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--soft);padding:4px 0;}
+  .cal-day{text-align:center;padding:8px 4px;border-radius:8px;font-size:13px;cursor:pointer;transition:background .1s;}
+  .cal-day.empty{cursor:default;}
+  .cal-day.other{color:var(--border);}
+  .cal-day.unavailable{color:var(--border);cursor:default;}
+  .cal-day.available:hover{background:rgba(194,89,45,0.1);}
+  .cal-day.selected{background:var(--orange);color:#fff;font-weight:700;}
+  .cal-day.today{font-weight:700;}
+
+  /* Créneaux */
+  .slots-grid{display:flex;flex-wrap:wrap;gap:8px;}
+  .slot{
+    padding:9px 14px;border-radius:8px;border:1px solid var(--border);
+    font-size:13px;font-weight:600;cursor:pointer;transition:all .1s;
+  }
+  .slot:hover,.slot.selected{background:var(--orange);color:#fff;border-color:var(--orange);}
+
+  /* Formulaire */
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--soft);margin-bottom:4px;font-weight:700;}
+  .field input,.field textarea,.field select{
+    width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;
+    font-size:13.5px;font-family:inherit;color:var(--brown);background:var(--bg);
+  }
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--orange);}
+  .field textarea{min-height:80px;resize:vertical;}
+  .btn-primary{
+    width:100%;background:var(--orange);color:var(--cream);border:none;border-radius:10px;
+    padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
+    transition:background .15s;
+  }
+  .btn-primary:hover{background:#a5461f;}
+  .btn-primary:disabled{opacity:0.5;cursor:default;}
+  .recap{background:rgba(194,89,45,0.06);border:1px solid rgba(194,89,45,0.2);border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13.5px;line-height:1.7;}
+  .recap strong{color:var(--orange);}
+  .success{text-align:center;padding:40px 20px;}
+  .success .check{font-size:48px;margin-bottom:16px;}
+  .success h2{font-family:'Chillax',sans-serif;font-size:20px;margin-bottom:8px;}
+  .success p{font-size:14px;color:var(--soft);line-height:1.6;}
+  .error-msg{color:#c0392b;font-size:13px;margin-top:6px;}
+  .loading{text-align:center;color:var(--soft);font-size:13px;padding:16px;}
+  .hidden{display:none!important;}
+
+  /* Gestion réservation */
+  .manage-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:24px;margin-bottom:16px;}
+  .manage-card h2{font-family:'Chillax',sans-serif;font-size:18px;margin-bottom:16px;}
+  .info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13.5px;}
+  .info-row:last-child{border:none;}
+  .info-row .label{color:var(--soft);}
+  .btn-danger{background:none;border:1px solid #e74c3c;color:#e74c3c;border-radius:9px;padding:11px 20px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;margin-top:8px;}
+  .btn-danger:hover{background:rgba(231,76,60,0.08);}
+  .btn-secondary{background:none;border:1px solid var(--border);color:var(--brown);border-radius:9px;padding:11px 20px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;margin-top:8px;}
+  .tag{display:inline-block;background:rgba(194,89,45,0.1);color:var(--orange);font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;text-transform:uppercase;}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="https://mozo.coach/mozo-logo-email.png" alt="mɔzɔ">
+  <span style="font-size:11px;color:var(--soft);">Réservation en ligne</span>
+</header>
+
+<div class="container" id="app">
+  <div class="loading" id="initialLoader">Chargement…</div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://bbdcfqayjvfcllhkcvxi.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZGNmcWF5anZmY2xsaGtjdnhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwNTQyOTUsImV4cCI6MjA5NzYzMDI5NX0.j2XpON4ql9PHD83bAK1eLjhjP4QvABoy1ndbqTlA0ac";
+const FN_URL = `${SUPABASE_URL}/functions/v1`;
+
+const params = new URLSearchParams(location.search);
+const COACH_ID = params.get("coach");
+const TOKEN = params.get("token");
+
+const app = document.getElementById("app");
+
+const MONTH_NAMES = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const DAY_NAMES = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+
+let state = {
+  sessionTypes: [],
+  selectedType: null,
+  calYear: new Date().getFullYear(),
+  calMonth: new Date().getMonth(),
+  selectedDate: null,
+  availableSlots: [],
+  selectedSlot: null,
+  coachName: ""
+};
+
+async function sbGet(table, filters = "") {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filters}`, {
+    headers: { "apikey": SUPABASE_ANON, "Authorization": `Bearer ${SUPABASE_ANON}` }
+  });
+  return r.json();
+}
+
+async function init() {
+  // Mode gestion de réservation via token
+  if (TOKEN) {
+    await loadManageView();
+    return;
+  }
+
+  if (!COACH_ID) {
+    app.innerHTML = `<div style="text-align:center;padding:40px;color:var(--soft);">Lien de réservation invalide.</div>`;
+    return;
+  }
+
+  try {
+    const types = await sbGet("session_types", `coach_id=eq.${COACH_ID}&actif=eq.true&select=id,nom,duree_minutes,description&order=duree_minutes.asc`);
+    if (!types || types.length === 0) {
+      app.innerHTML = `<div style="text-align:center;padding:40px;color:var(--soft);">Aucune séance disponible pour le moment.</div>`;
+      return;
+    }
+    state.sessionTypes = types;
+
+    const profile = await sbGet("profiles", `id=eq.${COACH_ID}&select=prenom,nom`);
+    if (profile && profile[0]) {
+      state.coachName = `${profile[0].prenom||""} ${profile[0].nom||""}`.trim();
+    }
+
+    renderTypeSelection();
+  } catch(e) {
+    app.innerHTML = `<div style="text-align:center;padding:40px;color:var(--soft);">Erreur de chargement. Réessaie dans un instant.</div>`;
+  }
+}
+
+/* ===== ÉTAPE 1 : Types de séances ===== */
+function renderTypeSelection() {
+  app.innerHTML = `
+    ${state.coachName ? `<h1>Réserver avec ${state.coachName}</h1>` : '<h1>Réserver une séance</h1>'}
+    <p class="subtitle">Choisis le type de séance qui te convient.</p>
+
+    <div class="card">
+      <div class="card-head"><h2>Type de séance</h2><span class="step-badge">Étape 1/4</span></div>
+      <div class="card-body" id="typeList"></div>
+    </div>`;
+
+  const list = document.getElementById("typeList");
+  state.sessionTypes.forEach(t => {
+    const div = document.createElement("div");
+    div.className = "type-option";
+    div.innerHTML = `
+      <div>
+        <div class="nom">${t.nom}</div>
+        ${t.description ? `<div class="desc">${t.description}</div>` : ""}
+      </div>
+      <div class="duree">${t.duree_minutes} min</div>`;
+    div.onclick = () => {
+      state.selectedType = t;
+      renderCalendar();
+    };
+    list.appendChild(div);
+  });
+}
+
+/* ===== ÉTAPE 2 : Calendrier ===== */
+function renderCalendar() {
+  const { calYear: y, calMonth: m, selectedType: t } = state;
+  app.innerHTML = `
+    <h1>${t.nom}</h1>
+    <p class="subtitle">${t.duree_minutes} min · Choisis une date disponible.</p>
+
+    <div class="card">
+      <div class="card-head"><h2>Choisir une date</h2><span class="step-badge">Étape 2/4</span></div>
+      <div class="card-body">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" id="prevMonth">‹</button>
+          <h3>${MONTH_NAMES[m]} ${y}</h3>
+          <button class="cal-nav-btn" id="nextMonth">›</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+    </div>
+    <button class="btn-secondary" onclick="renderTypeSelection()" style="background:none;border:1px solid var(--border);color:var(--brown);border-radius:9px;padding:10px;font-size:13px;cursor:pointer;font-family:inherit;width:100%;">← Changer de type</button>`;
+
+  document.getElementById("prevMonth").onclick = () => {
+    state.calMonth--;
+    if (state.calMonth < 0) { state.calMonth = 11; state.calYear--; }
+    renderCalendar();
+  };
+  document.getElementById("nextMonth").onclick = () => {
+    state.calMonth++;
+    if (state.calMonth > 11) { state.calMonth = 0; state.calYear++; }
+    renderCalendar();
+  };
+
+  buildCalGrid();
+}
+
+async function buildCalGrid() {
+  const grid = document.getElementById("calGrid");
+  if (!grid) return;
+  const { calYear: y, calMonth: m } = state;
+
+  // En-têtes
+  DAY_NAMES.forEach(d => {
+    const h = document.createElement("div");
+    h.className = "cal-weekday";
+    h.textContent = d;
+    grid.appendChild(h);
+  });
+
+  const firstDay = new Date(y, m, 1);
+  let startDow = firstDay.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // Récupérer les disponibilités du coach
+  const dispos = await sbGet("disponibilites", `coach_id=eq.${COACH_ID}&select=jour_semaine`);
+  const availableDays = new Set((dispos || []).map(d => d.jour_semaine));
+
+  // Récupérer les blocages du mois
+  const monthStart = `${y}-${String(m+1).padStart(2,"0")}-01`;
+  const monthEnd = `${y}-${String(m+1).padStart(2,"0")}-${String(daysInMonth).padStart(2,"0")}`;
+  const blocages = await sbGet("blocages", `coach_id=eq.${COACH_ID}&date_debut=lte.${monthEnd}&date_fin=gte.${monthStart}&select=date_debut,date_fin`);
+
+  function isBlocked(dateStr) {
+    return (blocages || []).some(b => dateStr >= b.date_debut && dateStr <= b.date_fin);
+  }
+
+  // Jours précédents (vides)
+  for (let i = 0; i < startDow; i++) {
+    const e = document.createElement("div"); e.className = "cal-day empty"; grid.appendChild(e);
+  }
+
+  // Jours du mois
+  for (let d = 1; d <= daysInMonth; d++) {
+    const cellDate = new Date(y, m, d);
+    const dateStr = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const jsDay = cellDate.getDay();
+    const ourDay = jsDay === 0 ? 6 : jsDay - 1;
+    const isPast = cellDate < today;
+    const hasAvailability = availableDays.has(ourDay);
+    const blocked = isBlocked(dateStr);
+    const isToday = cellDate.getTime() === today.getTime();
+    const isSelected = state.selectedDate === dateStr;
+
+    const cell = document.createElement("div");
+    let cls = "cal-day";
+    if (isPast || !hasAvailability || blocked) cls += " unavailable";
+    else { cls += " available"; }
+    if (isToday) cls += " today";
+    if (isSelected) cls += " selected";
+    cell.className = cls;
+    cell.textContent = d;
+
+    if (!isPast && hasAvailability && !blocked) {
+      cell.onclick = async () => {
+        state.selectedDate = dateStr;
+        await loadSlots(dateStr);
+      };
+    }
+    grid.appendChild(cell);
+  }
+}
+
+/* ===== ÉTAPE 3 : Créneaux ===== */
+async function loadSlots(date) {
+  app.innerHTML = `<div class="loading">Chargement des créneaux…</div>`;
+  try {
+    const r = await fetch(`${FN_URL}/get-slots?coach_id=${COACH_ID}&date=${date}&session_type_id=${state.selectedType.id}`, {
+      headers: { "Authorization": `Bearer ${SUPABASE_ANON}`, "apikey": SUPABASE_ANON }
+    });
+    const data = await r.json();
+    state.availableSlots = data.slots || [];
+    renderSlots(date, data.timezone);
+  } catch(e) {
+    app.innerHTML = `<div style="text-align:center;padding:40px;color:var(--soft);">Erreur de chargement. Réessaie.</div>`;
+  }
+}
+
+function formatDateFR(dateStr) {
+  const d = new Date(dateStr + "T12:00:00Z");
+  const label = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function renderSlots(date, timezone) {
+  const dateLabel = formatDateFR(date);
+  app.innerHTML = `
+    <h1>${state.selectedType.nom}</h1>
+    <p class="subtitle">${dateLabel}</p>
+
+    <div class="card">
+      <div class="card-head"><h2>Choisir un créneau</h2><span class="step-badge">Étape 3/4</span></div>
+      <div class="card-body">
+        ${state.availableSlots.length === 0
+          ? `<p style="color:var(--soft);font-size:13.5px;">Aucun créneau disponible ce jour. <a href="#" onclick="state.selectedDate=null;renderCalendar();return false;" style="color:var(--orange);">Choisir une autre date</a></p>`
+          : `<div class="slots-grid" id="slotsGrid">
+              ${state.availableSlots.map(s => `<div class="slot" data-slot="${s}">${s}</div>`).join("")}
+            </div>
+            ${timezone ? `<p style="font-size:11px;color:var(--soft);margin-top:10px;">Horaires en ${timezone}</p>` : ""}`
+        }
+      </div>
+    </div>
+    <button class="btn-secondary" onclick="renderCalendar()" style="background:none;border:1px solid var(--border);color:var(--brown);border-radius:9px;padding:10px;font-size:13px;cursor:pointer;font-family:inherit;width:100%;">← Changer de date</button>`;
+
+  document.querySelectorAll(".slot").forEach(btn => {
+    btn.onclick = () => {
+      state.selectedSlot = btn.dataset.slot;
+      renderForm();
+    };
+  });
+}
+
+/* ===== ÉTAPE 4 : Formulaire ===== */
+function renderForm() {
+  const dateLabel = formatDateFR(state.selectedDate);
+  const endMin = parseInt(state.selectedSlot.split(":")[0]) * 60 + parseInt(state.selectedSlot.split(":")[1]) + state.selectedType.duree_minutes;
+  const endTime = `${String(Math.floor(endMin/60)).padStart(2,"0")}:${String(endMin%60).padStart(2,"0")}`;
+
+  app.innerHTML = `
+    <h1>Tes coordonnées</h1>
+    <p class="subtitle">Dernière étape avant confirmation.</p>
+
+    <div class="recap">
+      <strong>${state.selectedType.nom}</strong><br>
+      ${dateLabel} · ${state.selectedSlot} – ${endTime}
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Tes informations</h2><span class="step-badge">Étape 4/4</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="field"><label>Prénom *</label><input type="text" id="f-prenom" placeholder="Prénom"></div>
+          <div class="field"><label>Nom *</label><input type="text" id="f-nom" placeholder="Nom"></div>
+        </div>
+        <div class="field"><label>Email *</label><input type="email" id="f-email" placeholder="ton@email.com"></div>
+        <div class="field"><label>Message (optionnel)</label><textarea id="f-notes" placeholder="Dis-nous ce sur quoi tu veux travailler…"></textarea></div>
+        <div class="error-msg hidden" id="formError"></div>
+        <button class="btn-primary" id="submitBtn">Confirmer ma réservation →</button>
+        <p style="font-size:11px;color:var(--soft);margin-top:10px;text-align:center;">Tu recevras une confirmation par email.</p>
+      </div>
+    </div>
+    <button class="btn-secondary" onclick="loadSlots(state.selectedDate)" style="background:none;border:1px solid var(--border);color:var(--brown);border-radius:9px;padding:10px;font-size:13px;cursor:pointer;font-family:inherit;width:100%;margin-top:0;">← Changer de créneau</button>`;
+
+  document.getElementById("submitBtn").onclick = submitBooking;
+}
+
+async function submitBooking() {
+  const prenom = document.getElementById("f-prenom").value.trim();
+  const nom = document.getElementById("f-nom").value.trim();
+  const email = document.getElementById("f-email").value.trim();
+  const notes = document.getElementById("f-notes").value.trim();
+  const errEl = document.getElementById("formError");
+
+  if (!prenom || !nom || !email) {
+    errEl.textContent = "Prénom, nom et email sont requis.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  btn.textContent = "Confirmation en cours…";
+  errEl.classList.add("hidden");
+
+  try {
+    const r = await fetch(`${FN_URL}/create-booking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SUPABASE_ANON}`, "apikey": SUPABASE_ANON },
+      body: JSON.stringify({
+        coach_id: COACH_ID,
+        session_type_id: state.selectedType.id,
+        date: state.selectedDate,
+        heure_debut: state.selectedSlot,
+        eleve_nom: `${prenom} ${nom}`,
+        eleve_prenom: prenom,
+        eleve_email: email,
+        notes
+      })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Erreur");
+    renderSuccess(prenom);
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = "Confirmer ma réservation →";
+    errEl.textContent = e.message || "Une erreur est survenue. Réessaie.";
+    errEl.classList.remove("hidden");
+  }
+}
+
+function renderSuccess(prenom) {
+  const dateLabel = formatDateFR(state.selectedDate);
+  app.innerHTML = `
+    <div class="success">
+      <div class="check">✓</div>
+      <h2>C'est confirmé, ${prenom} !</h2>
+      <p>Ta séance <strong>${state.selectedType.nom}</strong> est réservée<br>
+      le <strong>${dateLabel}</strong> à <strong>${state.selectedSlot}</strong>.<br><br>
+      Un email de confirmation t'a été envoyé avec un lien pour modifier ou annuler ta réservation si besoin.</p>
+    </div>`;
+}
+
+/* ===== MODE GESTION (token) ===== */
+async function loadManageView() {
+  try {
+    const r = await fetch(`${FN_URL}/manage-booking?token=${TOKEN}`, {
+      headers: { "Authorization": `Bearer ${SUPABASE_ANON}`, "apikey": SUPABASE_ANON }
+    });
+    const resa = await r.json();
+    if (!r.ok || !resa.id) throw new Error(resa.error || "Réservation introuvable");
+    renderManageView(resa);
+  } catch(e) {
+    app.innerHTML = `<div style="text-align:center;padding:40px;color:var(--soft);">${e.message}</div>`;
+  }
+}
+
+function renderManageView(resa) {
+  const d = new Date(resa.date + "T12:00:00Z");
+  const dateLabel = d.toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+  const dateCapitalized = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
+  const isCancelled = resa.statut === "annulee";
+  const canModify = resa.can_modify;
+
+  app.innerHTML = `
+    <h1>Ma réservation</h1>
+    <p class="subtitle">${isCancelled ? "Cette réservation est annulée." : "Consulte ou modifie ta réservation ci-dessous."}</p>
+
+    <div class="manage-card">
+      <h2>Détails de la séance</h2>
+      ${isCancelled ? '<span class="tag" style="margin-bottom:12px;display:inline-block;">Annulée</span>' : ''}
+      <div class="info-row"><span class="label">Type</span><span>${resa.session_type_nom}</span></div>
+      <div class="info-row"><span class="label">Date</span><span>${dateCapitalized}</span></div>
+      <div class="info-row"><span class="label">Heure</span><span>${resa.heure_debut.slice(0,5)} – ${resa.heure_fin.slice(0,5)}</span></div>
+      <div class="info-row"><span class="label">Élève</span><span>${resa.eleve_nom}</span></div>
+    </div>
+
+    ${!isCancelled && canModify ? `
+      <div class="manage-card">
+        <h2>Modifier ma réservation</h2>
+        <p style="font-size:13px;color:var(--soft);margin-bottom:16px;">Tu peux annuler ou replanifier jusqu'à 24h avant la séance.</p>
+        <div id="manageActions">
+          <button class="btn-secondary" onclick="showReschedule()">📅 Choisir une autre date</button>
+          <button class="btn-danger" onclick="cancelBooking()">Annuler cette réservation</button>
+        </div>
+        <div id="rescheduleArea" class="hidden" style="margin-top:16px;"></div>
+      </div>` : ''}
+
+    ${!isCancelled && !canModify ? `
+      <div class="manage-card">
+        <p style="font-size:13.5px;color:var(--soft);">La modification n'est plus possible moins de 24h avant la séance.</p>
+      </div>` : ''}
+
+    ${isCancelled ? `
+      <a href="https://mozo.coach/booking.html?coach=${resa.coach_id}" class="btn-primary" style="display:block;text-align:center;text-decoration:none;padding:14px;border-radius:10px;font-weight:700;">
+        Réserver une nouvelle séance
+      </a>` : ''}`;
+}
+
+async function cancelBooking() {
+  if (!confirm("Annuler définitivement cette séance ?")) return;
+  try {
+    const r = await fetch(`${FN_URL}/manage-booking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SUPABASE_ANON}`, "apikey": SUPABASE_ANON },
+      body: JSON.stringify({ token: TOKEN, action: "cancel" })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    app.innerHTML = `<div class="success"><div class="check" style="font-size:36px;">✓</div><h2>Séance annulée</h2><p>Ta réservation a bien été annulée. Tu as reçu un email de confirmation.</p></div>`;
+  } catch(e) {
+    alert(e.message);
+  }
+}
+
+function showReschedule() {
+  const area = document.getElementById("rescheduleArea");
+  area.classList.remove("hidden");
+  area.innerHTML = `<p style="font-size:13px;color:var(--soft);">Sélectionne une nouvelle date dans le calendrier :</p>
+    <div id="reschedCal"></div>`;
+  buildReschedCalendar();
+}
+
+async function buildReschedCalendar() {
+  // Simplified reschedule: show next 30 days with availability
+  const area = document.getElementById("reschedCal");
+  if (!area) return;
+
+  // Get the reservation details to know coach_id and type
+  const r = await fetch(`${FN_URL}/manage-booking?token=${TOKEN}`, {
+    headers: { "Authorization": `Bearer ${SUPABASE_ANON}`, "apikey": SUPABASE_ANON }
+  });
+  const resa = await r.json();
+
+  const today = new Date();
+  const dates = [];
+  for (let i = 1; i <= 30; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    dates.push(d);
+  }
+
+  const dispos = await sbGet("disponibilites", `coach_id=eq.${resa.coach_id}&select=jour_semaine`);
+  const availDays = new Set((dispos || []).map(d => d.jour_semaine));
+
+  area.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">' +
+    dates.map(d => {
+      const jsDay = d.getDay();
+      const ourDay = jsDay === 0 ? 6 : jsDay - 1;
+      const dateStr = d.toISOString().slice(0,10);
+      const label = d.toLocaleDateString("fr-FR", { weekday:"short", day:"numeric", month:"short" });
+      const avail = availDays.has(ourDay);
+      return `<button onclick="${avail ? `pickReschedDate('${dateStr}','${resa.coach_id}','${resa.session_type_id}')` : ''}" style="padding:8px 12px;border-radius:8px;border:1px solid ${avail?'var(--border)':'var(--border)'};background:${avail?'#fff':'var(--bg)'};color:${avail?'var(--brown)':'var(--soft)'};cursor:${avail?'pointer':'default'};font-size:12.5px;font-family:inherit;">${label}</button>`;
+    }).join("") + '</div>';
+}
+
+async function pickReschedDate(date, coachId, typeId) {
+  const r = await fetch(`${FN_URL}/get-slots?coach_id=${coachId}&date=${date}&session_type_id=${typeId}`, {
+    headers: { "Authorization": `Bearer ${SUPABASE_ANON}`, "apikey": SUPABASE_ANON }
+  });
+  const data = await r.json();
+  const area = document.getElementById("rescheduleArea");
+  const dateLabel = formatDateFR(date);
+
+  area.innerHTML = `<p style="font-size:13px;color:var(--soft);margin-bottom:8px;">Créneaux disponibles le <strong>${dateLabel}</strong> :</p>
+    <div class="slots-grid">
+      ${(data.slots||[]).length === 0
+        ? '<p style="font-size:13px;color:var(--soft);">Aucun créneau disponible ce jour.</p>'
+        : data.slots.map(s => `<div class="slot" onclick="confirmReschedule('${date}','${s}')">${s}</div>`).join("")}
+    </div>
+    <button onclick="showReschedule()" style="margin-top:12px;background:none;border:none;color:var(--orange);font-size:13px;cursor:pointer;font-family:inherit;">← Autre date</button>`;
+}
+
+async function confirmReschedule(newDate, newTime) {
+  if (!confirm(`Replanifier au ${formatDateFR(newDate)} à ${newTime} ?`)) return;
+  try {
+    const r = await fetch(`${FN_URL}/manage-booking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SUPABASE_ANON}`, "apikey": SUPABASE_ANON },
+      body: JSON.stringify({ token: TOKEN, action: "reschedule", new_date: newDate, new_heure_debut: newTime })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    app.innerHTML = `<div class="success"><div class="check" style="font-size:36px;">✓</div><h2>Séance replanifiée</h2><p>Ta séance a été déplacée au <strong>${formatDateFR(newDate)}</strong> à <strong>${newTime}</strong>.<br>Tu as reçu un email de confirmation.</p></div>`;
+  } catch(e) { alert(e.message); }
+}
+
+init();
+</script>
+</body>
+</html>
