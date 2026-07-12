@@ -1374,54 +1374,129 @@
 
         <!-- Onglet Disponibilités -->
         <div id="agenda-disponibilites" class="hidden">
-          <div style="margin-bottom:16px;">
-            <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--brown-soft);font-weight:700;display:block;margin-bottom:6px;">Fuseau horaire</label>
-            <select class="tz-select" id="timezoneSelect">
-              <option value="Europe/Paris">Europe/Paris (UTC+1/+2)</option>
-              <option value="Europe/London">Europe/London (UTC+0/+1)</option>
-              <option value="Africa/Dakar">Africa/Dakar (UTC+0)</option>
-              <option value="Africa/Abidjan">Africa/Abidjan (UTC+0)</option>
-              <option value="Africa/Casablanca">Africa/Casablanca (UTC+0/+1)</option>
-              <option value="Africa/Nairobi">Africa/Nairobi (UTC+3)</option>
-              <option value="America/New_York">America/New_York (UTC-5/-4)</option>
-              <option value="America/Chicago">America/Chicago (UTC-6/-5)</option>
-              <option value="America/Los_Angeles">America/Los_Angeles (UTC-8/-7)</option>
-              <option value="America/Toronto">America/Toronto (UTC-5/-4)</option>
-              <option value="America/Guadeloupe">America/Guadeloupe (UTC-4)</option>
-              <option value="America/Martinique">America/Martinique (UTC-4)</option>
-              <option value="Indian/Reunion">Indian/Reunion (UTC+4)</option>
-              <option value="Indian/Mauritius">Indian/Mauritius (UTC+4)</option>
-              <option value="Pacific/Tahiti">Pacific/Tahiti (UTC-10)</option>
-            </select>
+          <div class="form-row" style="margin-bottom:16px;">
+            <div>
+              <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--brown-soft);font-weight:700;display:block;margin-bottom:6px;">Configurer pour</label>
+              <select class="tz-select" id="dispoTypeSelect" style="margin-bottom:0;">
+                <option value="">— Choisir un type de séance —</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--brown-soft);font-weight:700;display:block;margin-bottom:6px;">Fuseau horaire</label>
+              <select class="tz-select" id="timezoneSelect" style="margin-bottom:0;">
+                <option value="Europe/Paris">Europe/Paris (UTC+1/+2)</option>
+                <option value="Europe/London">Europe/London (UTC+0/+1)</option>
+                <option value="Africa/Dakar">Africa/Dakar (UTC+0)</option>
+                <option value="Africa/Abidjan">Africa/Abidjan (UTC+0)</option>
+                <option value="Africa/Casablanca">Africa/Casablanca (UTC+0/+1)</option>
+                <option value="Africa/Nairobi">Africa/Nairobi (UTC+3)</option>
+                <option value="America/New_York">America/New_York (UTC-5/-4)</option>
+                <option value="America/Chicago">America/Chicago (UTC-6/-5)</option>
+                <option value="America/Los_Angeles">America/Los_Angeles (UTC-8/-7)</option>
+                <option value="America/Toronto">America/Toronto (UTC-5/-4)</option>
+                <option value="America/Guadeloupe">America/Guadeloupe (UTC-4)</option>
+                <option value="America/Martinique">America/Martinique (UTC-4)</option>
+                <option value="Indian/Reunion">Indian/Reunion (UTC+4)</option>
+                <option value="Indian/Mauritius">Indian/Mauritius (UTC+4)</option>
+                <option value="Pacific/Tahiti">Pacific/Tahiti (UTC-10)</option>
+              </select>
+            </div>
           </div>
-          <div class="dispo-grid" id="dispoGrid"></div>
-          <button class="btn-add" id="saveDispoBtn">Enregistrer les disponibilités</button>
+          <div id="dispoTypeMessage" style="font-size:13px;color:var(--brown-soft);padding:12px 0;">Sélectionne un type de séance pour configurer ses disponibilités.</div>
+          <div class="dispo-grid hidden" id="dispoGrid"></div>
+          <button class="btn-add hidden" id="saveDispoBtn">Enregistrer les disponibilités</button>
         </div>
 
         <!-- Onglet Types de séances -->
         <div id="agenda-types" class="hidden">
-          <button class="btn-add" id="newTypeBtn" style="margin-bottom:16px;">+ Ajouter un type</button>
-          <div class="inline-form hidden" id="typeForm" style="margin-bottom:16px;">
-            <div class="form-row">
-              <div><label>Nom *</label><input type="text" id="f-type-nom" placeholder="Ex. Coaching vocal"></div>
-              <div><label>Durée (min) *</label><input type="number" id="f-type-duree" placeholder="60" min="15" step="15"></div>
-            </div>
-            <div class="form-row">
+
+          <!-- SÉANCES OUVERTES -->
+          <div style="margin-bottom:28px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
               <div>
-                <label>Capacité <span style="font-weight:400;color:var(--brown-soft);font-size:11px;">(places par créneau)</span></label>
-                <input type="number" id="f-type-capacite" placeholder="1" min="1" value="1">
+                <div style="font-family:'Chillax',sans-serif;font-weight:700;font-size:15px;color:var(--brown);">Séances ouvertes</div>
+                <div style="font-size:12px;color:var(--brown-soft);margin-top:2px;">L'élève choisit librement dans tes disponibilités</div>
               </div>
-              <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
-                <span style="font-size:12.5px;color:var(--brown-soft);line-height:1.5;">1 = individuel · 2+ = collectif/groupe</span>
+              <button class="btn-add" id="newTypeBtn" style="font-size:13px;">+ Ajouter</button>
+            </div>
+            <div class="inline-form hidden" id="typeForm" style="margin-bottom:12px;">
+              <div class="form-row">
+                <div><label>Nom *</label><input type="text" id="f-type-nom" placeholder="Ex. Coaching vocal"></div>
+                <div><label>Durée (min) *</label><input type="number" id="f-type-duree" placeholder="60" min="15" step="15"></div>
+              </div>
+              <div class="form-row">
+                <div><label>Capacité</label><input type="number" id="f-type-capacite" placeholder="1" min="1" value="1"></div>
+                <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
+                  <span style="font-size:12px;color:var(--brown-soft);">1 = individuel · 2+ = groupe</span>
+                </div>
+              </div>
+              <div><label>Description</label><textarea id="f-type-desc" placeholder="Brève description pour les élèves…"></textarea></div>
+              <div class="form-actions">
+                <button class="btn-cancel" id="cancelTypeBtn">Annuler</button>
+                <button class="btn-save" id="saveTypeBtn">Enregistrer</button>
               </div>
             </div>
-            <div><label>Description</label><textarea id="f-type-desc" placeholder="Brève description pour les élèves…"></textarea></div>
-            <div class="form-actions">
-              <button class="btn-cancel" id="cancelTypeBtn">Annuler</button>
-              <button class="btn-save" id="saveTypeBtn">Enregistrer</button>
-            </div>
+            <div id="typesList"></div>
           </div>
-          <div id="typesList"></div>
+
+          <!-- COURS PROGRAMMÉS -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div>
+                <div style="font-family:'Chillax',sans-serif;font-weight:700;font-size:15px;color:var(--brown);">Cours programmés</div>
+                <div style="font-size:12px;color:var(--brown-soft);margin-top:2px;">Tu définis l'horaire, les élèves s'inscrivent</div>
+              </div>
+              <button class="btn-add" id="newCoursBtn" style="font-size:13px;">+ Créer un cours</button>
+            </div>
+            <div class="inline-form hidden" id="coursForm" style="margin-bottom:12px;">
+              <div class="form-row">
+                <div><label>Titre *</label><input type="text" id="f-cours-titre" placeholder="Ex. Masterclass groupe"></div>
+                <div><label>Durée (min) *</label><input type="number" id="f-cours-duree" placeholder="60" min="15" step="15"></div>
+              </div>
+              <div class="form-row">
+                <div><label>Capacité (places) *</label><input type="number" id="f-cours-capacite" placeholder="10" min="1" value="10"></div>
+                <div>
+                  <label>Fréquence *</label>
+                  <select id="f-cours-frequence" onchange="toggleCoursDateFields()">
+                    <option value="unique">Cours unique</option>
+                    <option value="hebdomadaire" selected>Hebdomadaire</option>
+                    <option value="bi-hebdomadaire">Bi-hebdomadaire</option>
+                    <option value="mensuel">Mensuel</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row" id="coursJourRow">
+                <div>
+                  <label>Jour *</label>
+                  <select id="f-cours-jour">
+                    <option value="0">Lundi</option>
+                    <option value="1">Mardi</option>
+                    <option value="2">Mercredi</option>
+                    <option value="3">Jeudi</option>
+                    <option value="4">Vendredi</option>
+                    <option value="5">Samedi</option>
+                    <option value="6">Dimanche</option>
+                  </select>
+                </div>
+                <div><label>Heure (24h) *</label><input type="time" id="f-cours-heure"></div>
+              </div>
+              <div class="form-row" id="coursDateUniqueRow" style="display:none;">
+                <div><label>Date du cours *</label><input type="date" id="f-cours-date-unique"></div>
+                <div><label>Heure (24h) *</label><input type="time" id="f-cours-heure-unique"></div>
+              </div>
+              <div class="form-row">
+                <div><label>Date de début *</label><input type="date" id="f-cours-date-debut"></div>
+                <div><label>Date de fin <span style="font-weight:400;font-size:11px;color:var(--brown-soft);">(optionnelle)</span></label><input type="date" id="f-cours-date-fin"></div>
+              </div>
+              <div><label>Description</label><textarea id="f-cours-desc" placeholder="Objectifs, niveau requis…"></textarea></div>
+              <div class="form-actions">
+                <button class="btn-cancel" id="cancelCoursBtn">Annuler</button>
+                <button class="btn-save" id="saveCoursBtn">Enregistrer le cours</button>
+              </div>
+            </div>
+            <div id="coursList"></div>
+          </div>
+
         </div>
 
       </div>
@@ -2985,34 +3060,38 @@ el('newResaBtn').onclick = () => {
 
 /* --- Disponibilités --- */
 async function loadDisponibilites(){
-  const grid = el('dispoGrid');
-  grid.innerHTML = '<div class="lib-empty">Chargement…</div>';
-
   try{
-    const [dispoRes, profileRes] = await Promise.all([
-      sb.from('disponibilites').select('*').eq('coach_id', state.user.id),
-      sb.from('profiles').select('timezone,buffer_minutes').eq('id', state.user.id).single()
-    ]);
-
-    // Init l'état
-    for(let i = 0; i <= 6; i++){
-      dispoState[i] = { on: false, debut: '09:00', fin: '18:00' };
-    }
-    (dispoRes.data || []).forEach(d => {
-      dispoState[d.jour_semaine] = { on: true, debut: d.heure_debut.slice(0,5), fin: d.heure_fin.slice(0,5) };
-    });
-
+    const profileRes = await sb.from('profiles').select('timezone').eq('id', state.user.id).single();
     if(profileRes.data?.timezone) el('timezoneSelect').value = profileRes.data.timezone;
 
-    renderDispoGrid();
-  }catch(err){
-    grid.innerHTML = `<div class="lib-empty">Erreur : ${escapeHtml(err.message)}</div>`;
+    const { data: types } = await sb.from('session_types').select('id,nom').eq('coach_id', state.user.id).eq('categorie','ouvert').order('nom');
+    const dispoSelect = el('dispoTypeSelect');
+    const currentVal = dispoSelect.value;
+    dispoSelect.innerHTML = '<option value="">— Choisir un type de séance —</option>' +
+      (types || []).map(t => `<option value="${t.id}">${escapeHtml(t.nom)}</option>`).join('');
+    if(currentVal) dispoSelect.value = currentVal;
+    dispoSelect.onchange = () => loadDispoForType(dispoSelect.value);
+    if(dispoSelect.value) await loadDispoForType(dispoSelect.value);
+  }catch(err){ showToast('Erreur : ' + err.message, true); }
+}
+
+async function loadDispoForType(typeId){
+  const msg = el('dispoTypeMessage');
+  const grid = el('dispoGrid');
+  const btn = el('saveDispoBtn');
+  if(!typeId){
+    msg.style.display='block'; grid.classList.add('hidden'); btn.classList.add('hidden'); return;
   }
+  msg.style.display='none'; grid.classList.remove('hidden'); btn.classList.remove('hidden');
+  for(let i=0;i<=6;i++) dispoState[i]={on:false,debut:'09:00',fin:'18:00'};
+  const {data:dispos} = await sb.from('disponibilites').select('*').eq('coach_id',state.user.id).eq('session_type_id',typeId);
+  (dispos||[]).forEach(d=>{ dispoState[d.jour_semaine]={on:true,debut:d.heure_debut.slice(0,5),fin:d.heure_fin.slice(0,5)}; });
+  renderDispoGrid();
 }
 
 function renderDispoGrid(){
   const grid = el('dispoGrid');
-  grid.innerHTML = DAYS_FR.map((day, i) => {
+  grid.innerHTML = DAYS_FR.map((day,i) => {
     const d = dispoState[i];
     return `<div class="dispo-row">
       <div class="dispo-day">${day}</div>
@@ -3028,38 +3107,25 @@ function renderDispoGrid(){
 }
 
 function toggleDispo(i){
-  dispoState[i].on = !dispoState[i].on;
-  document.getElementById('toggle-'+i).classList.toggle('on', dispoState[i].on);
-  document.getElementById('debut-'+i).disabled = !dispoState[i].on;
-  document.getElementById('fin-'+i).disabled = !dispoState[i].on;
+  dispoState[i].on=!dispoState[i].on;
+  document.getElementById('toggle-'+i).classList.toggle('on',dispoState[i].on);
+  document.getElementById('debut-'+i).disabled=!dispoState[i].on;
+  document.getElementById('fin-'+i).disabled=!dispoState[i].on;
 }
 
 el('saveDispoBtn').onclick = async () => {
+  const typeId = el('dispoTypeSelect').value;
+  if(!typeId){ showToast('Sélectionne un type de séance.', true); return; }
   try{
-    // Mettre à jour le fuseau horaire
-    const tz = el('timezoneSelect').value;
-    await sb.from('profiles').update({ timezone: tz }).eq('id', state.user.id);
-
-    // Supprimer toutes les dispos existantes, réinsérer
-    await sb.from('disponibilites').delete().eq('coach_id', state.user.id);
-
-    const toInsert = [];
-    for(let i = 0; i <= 6; i++){
-      if(dispoState[i].on){
-        toInsert.push({
-          coach_id: state.user.id,
-          jour_semaine: i,
-          heure_debut: dispoState[i].debut,
-          heure_fin: dispoState[i].fin
-        });
-      }
+    await sb.from('profiles').update({timezone:el('timezoneSelect').value}).eq('id',state.user.id);
+    await sb.from('disponibilites').delete().eq('coach_id',state.user.id).eq('session_type_id',typeId);
+    const toInsert=[];
+    for(let i=0;i<=6;i++){
+      if(dispoState[i].on) toInsert.push({coach_id:state.user.id,session_type_id:typeId,jour_semaine:i,heure_debut:dispoState[i].debut,heure_fin:dispoState[i].fin});
     }
-    if(toInsert.length > 0){
-      const { error } = await sb.from('disponibilites').insert(toInsert);
-      if(error) throw error;
-    }
+    if(toInsert.length>0){ const{error}=await sb.from('disponibilites').insert(toInsert); if(error) throw error; }
     showToast('Disponibilités enregistrées ✓');
-  }catch(err){ showToast('Erreur : ' + err.message, true); }
+  }catch(err){ showToast('Erreur : '+err.message, true); }
 };
 
 /* --- Types de séances --- */
@@ -3067,17 +3133,18 @@ async function loadSessionTypes(){
   const { data, error } = await sb.from('session_types').select('*').eq('coach_id', state.user.id).order('duree_minutes');
   if(error){ showToast('Erreur : ' + error.message, true); return; }
   sessionTypesList = data || [];
+  const ouverts = sessionTypesList.filter(t => (t.categorie||'ouvert') === 'ouvert');
 
-  el('typesList').innerHTML = sessionTypesList.length === 0
-    ? '<div class="lib-empty">Aucun type de séance. Ajoute ton premier type ci-dessus.</div>'
-    : sessionTypesList.map(t => {
+  el('typesList').innerHTML = ouverts.length === 0
+    ? '<div class="lib-empty">Aucun type de séance ouverte. Ajoute-en un ci-dessus.</div>'
+    : ouverts.map(t => {
         const capaciteLabel = (t.capacite||1) > 1
           ? `<span class="tag" style="font-size:10px;margin-left:6px;">Groupe · ${t.capacite} places</span>`
           : '';
         return `<div class="type-card">
           <div>
             <div class="type-nom">${escapeHtml(t.nom)}${capaciteLabel}</div>
-            <div class="type-meta">${t.duree_minutes} min${t.description ? ' · ' + escapeHtml(t.description) : ''}${!t.actif ? ' · <span style="color:var(--brown-soft);">Inactif</span>' : ''}</div>
+            <div class="type-meta">${t.duree_minutes} min${t.description ? ' · ' + escapeHtml(t.description) : ''}</div>
           </div>
           <div class="resa-actions">
             <button class="resa-btn" onclick="editType('${t.id}')">✎</button>
@@ -3085,6 +3152,8 @@ async function loadSessionTypes(){
           </div>
         </div>`;
       }).join('');
+
+  loadCoursProgrammes();
 }
 
 el('newTypeBtn').onclick = () => {
@@ -3123,7 +3192,7 @@ el('saveTypeBtn').onclick = async () => {
       if(error) throw error;
       showToast('Type mis à jour');
     } else {
-      const { error } = await sb.from('session_types').insert({ ...payload, coach_id: state.user.id });
+      const { error } = await sb.from('session_types').insert({ ...payload, coach_id: state.user.id, categorie: 'ouvert' });
       if(error) throw error;
       showToast('Type ajouté');
     }
@@ -3142,6 +3211,97 @@ async function deleteType(id, nom){
     loadSessionTypes();
   }catch(err){ showToast('Erreur : ' + err.message, true); }
 }
+
+/* --- Cours programmés --- */
+function toggleCoursDateFields(){
+  const freq = el('f-cours-frequence').value;
+  const isUnique = freq === 'unique';
+  el('coursJourRow').style.display = isUnique ? 'none' : '';
+  el('coursDateUniqueRow').style.display = isUnique ? '' : 'none';
+  const dateDebutRow = el('f-cours-date-debut').closest('.form-row');
+  if(dateDebutRow) dateDebutRow.style.display = isUnique ? 'none' : '';
+}
+window.toggleCoursDateFields = toggleCoursDateFields;
+
+async function loadCoursProgrammes(){
+  const {data,error} = await sb.from('cours_programmes').select('*, session_types(nom)').eq('coach_id',state.user.id).order('date_debut',{ascending:true});
+  if(error){ showToast('Erreur : '+error.message,true); return; }
+  const list = el('coursList');
+  if(!data||data.length===0){ list.innerHTML='<div class="lib-empty">Aucun cours programmé.</div>'; return; }
+
+  const freqLabel = {unique:'Cours unique',hebdomadaire:'Hebdomadaire','bi-hebdomadaire':'Bi-hebdomadaire',mensuel:'Mensuel'};
+  const dayLabel = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+
+  list.innerHTML = data.map(c => {
+    const schedule = c.frequence==='unique'
+      ? `Le ${new Date(c.date_debut+'T12:00:00Z').toLocaleDateString('fr-FR')} à ${c.heure_debut.slice(0,5)}`
+      : `${dayLabel[c.jour_semaine] || ''} à ${c.heure_debut.slice(0,5)} · ${freqLabel[c.frequence]}`;
+    return `<div class="type-card">
+      <div>
+        <div class="type-nom">${escapeHtml(c.titre)} <span class="tag" style="font-size:10px;">${c.capacite} places</span></div>
+        <div class="type-meta">${c.duree_minutes} min · ${schedule}</div>
+        ${c.date_fin?`<div class="type-meta">Jusqu'au ${new Date(c.date_fin+'T12:00:00Z').toLocaleDateString('fr-FR')}</div>`:''}
+      </div>
+      <div class="resa-actions">
+        <button class="resa-btn danger" onclick="deleteCours('${c.id}','${escapeHtml(c.titre)}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.deleteCours = async(id,titre)=>{
+  if(!confirm(`Supprimer "${titre}" et toutes ses réservations ?`)) return;
+  const{error}=await sb.from('cours_programmes').delete().eq('id',id);
+  if(error){ showToast('Erreur : '+error.message,true); return; }
+  showToast('Cours supprimé');
+  loadCoursProgrammes();
+};
+
+el('newCoursBtn').onclick=()=>{
+  ['titre','duree','capacite','desc','heure','heure-unique','date-debut','date-fin','date-unique'].forEach(f=>{
+    const e=el('f-cours-'+f); if(e) e.value='';
+  });
+  el('f-cours-capacite').value='10';
+  el('f-cours-frequence').value='hebdomadaire';
+  toggleCoursDateFields();
+  el('coursForm').classList.remove('hidden');
+};
+el('cancelCoursBtn').onclick=()=>el('coursForm').classList.add('hidden');
+
+el('saveCoursBtn').onclick=async()=>{
+  const freq = el('f-cours-frequence').value;
+  const isUnique = freq==='unique';
+  const titre = el('f-cours-titre').value.trim();
+  const duree = parseInt(el('f-cours-duree').value);
+  const capacite = parseInt(el('f-cours-capacite').value)||10;
+  const heure = isUnique ? el('f-cours-heure-unique').value : el('f-cours-heure').value;
+  const dateDebut = isUnique ? el('f-cours-date-unique').value : el('f-cours-date-debut').value;
+  if(!titre||!duree||!heure||!dateDebut){ showToast('Champs obligatoires manquants.',true); return; }
+
+  // Créer ou trouver un session_type 'programme' pour ce coach
+  let {data:existingType} = await sb.from('session_types').select('id').eq('coach_id',state.user.id).eq('categorie','programme').eq('nom',titre).maybeSingle();
+  let typeId = existingType?.id;
+  if(!typeId){
+    const{data:newType,error:tErr}=await sb.from('session_types').insert({coach_id:state.user.id,nom:titre,duree_minutes:duree,capacite,categorie:'programme'}).select('id').single();
+    if(tErr){showToast('Erreur type : '+tErr.message,true);return;}
+    typeId=newType.id;
+  }
+
+  const payload = {
+    coach_id:state.user.id, session_type_id:typeId,
+    titre, duree_minutes:duree, capacite, frequence:freq,
+    heure_debut:heure, date_debut:dateDebut,
+    jour_semaine:isUnique?null:parseInt(el('f-cours-jour').value),
+    date_fin:el('f-cours-date-fin').value||null,
+    description:el('f-cours-desc').value.trim()||null
+  };
+  const{error}=await sb.from('cours_programmes').insert(payload);
+  if(error){showToast('Erreur : '+error.message,true);return;}
+  showToast('Cours créé ✓');
+  el('coursForm').classList.add('hidden');
+  loadCoursProgrammes();
+  loadSessionTypes();
+};
 
 /* ============================================================
    RÉPERTOIRE

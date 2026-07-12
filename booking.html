@@ -150,7 +150,7 @@ async function init() {
   }
 
   try {
-    const types = await sbGet("session_types", `coach_id=eq.${COACH_ID}&actif=eq.true&select=id,nom,duree_minutes,description&order=duree_minutes.asc`);
+    const types = await sbGet("session_types", `coach_id=eq.${COACH_ID}&actif=eq.true&select=id,nom,duree_minutes,description,categorie,capacite&order=duree_minutes.asc`);
     if (!types || types.length === 0) {
       app.innerHTML = `<div style="text-align:center;padding:40px;color:var(--soft);">Aucune séance disponible pour le moment.</div>`;
       return;
@@ -191,10 +191,178 @@ function renderTypeSelection() {
       <div class="duree">${t.duree_minutes} min</div>`;
     div.onclick = () => {
       state.selectedType = t;
-      renderCalendar();
+      if((t.categorie || 'ouvert') === 'programme'){
+        renderCoursProgrammes();
+      } else {
+        renderCalendar();
+      }
     };
     list.appendChild(div);
   });
+}
+
+/* ===== COURS PROGRAMMÉS : liste des sessions ===== */
+async function renderCoursProgrammes(){
+  app.innerHTML = `<div class="loading">Chargement des sessions…</div>`;
+  try{
+    const cours = await sbGet("cours_programmes", `coach_id=eq.${COACH_ID}&session_type_id=eq.${state.selectedType.id}&actif=eq.true&select=*&order=date_debut.asc`);
+    if(!cours || cours.length === 0){
+      app.innerHTML = `
+        <h1>${state.selectedType.nom}</h1>
+        <p class="subtitle">Aucune session programmée pour le moment.</p>
+        <button class="btn-secondary" onclick="renderTypeSelection()" style="background:none;border:1px solid var(--border);color:var(--brown);border-radius:9px;padding:10px;font-size:13px;cursor:pointer;font-family:inherit;width:100%;">← Retour</button>`;
+      return;
+    }
+
+    // Générer les instances des cours
+    const instances = generateInstances(cours);
+
+    // Compter les réservations existantes pour chaque instance
+    const allResaRes = await sbGet("reservations", `coach_id=eq.${COACH_ID}&statut=eq.confirmee&select=cours_programme_id,date`);
+    const allResa = allResaRes || [];
+
+    const available = instances.filter(inst => {
+      const count = allResa.filter(r => r.cours_programme_id === inst.cours.id && r.date === inst.date).length;
+      return count < inst.cours.capacite;
+    }).map(inst => {
+      const count = allResa.filter(r => r.cours_programme_id === inst.cours.id && r.date === inst.date).length;
+      return { ...inst, remaining: inst.cours.capacite - count };
+    });
+
+    if(available.length === 0){
+      app.innerHTML = `
+        <h1>${state.selectedType.nom}</h1>
+        <p class="subtitle">Toutes les sessions à venir sont complètes.</p>
+        <button class="btn-secondary" onclick="renderTypeSelection()" style="background:none;border:1px solid var(--border);color:var(--brown);border-radius:9px;padding:10px;font-size:13px;cursor:pointer;font-family:inherit;width:100%;">← Retour</button>`;
+      return;
+    }
+
+    app.innerHTML = `
+      <h1>${state.selectedType.nom}</h1>
+      <p class="subtitle">Choisis la session à laquelle tu souhaites participer.</p>
+      <div class="card">
+        <div class="card-head"><h2>Sessions disponibles</h2><span class="step-badge">Étape 2/3</span></div>
+        <div class="card-body">
+          ${available.slice(0, 12).map(inst => {
+            const d = new Date(inst.date + 'T12:00:00Z');
+            const dateLabel = d.toLocaleDateString('fr-FR', {weekday:'long',day:'numeric',month:'long'});
+            const dateCapitalized = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
+            const endMin = timeToMin(inst.cours.heure_debut.slice(0,5)) + inst.cours.duree_minutes;
+            const endTime = minToTime(endMin);
+            return `<div class="type-option" onclick="selectCoursInstance('${inst.cours.id}','${inst.date}','${inst.cours.heure_debut.slice(0,5)}','${endTime}')">
+              <div>
+                <div class="nom">${dateCapitalized}</div>
+                <div class="desc">${inst.cours.heure_debut.slice(0,5)} – ${endTime} · ${inst.cours.duree_minutes} min</div>
+                ${inst.cours.description ? `<div class="desc" style="margin-top:2px;">${inst.cours.description}</div>` : ''}
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:12px;color:var(--orange);font-weight:700;">${inst.remaining} place${inst.remaining > 1 ? 's' : ''}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <button class="btn-secondary" onclick="renderTypeSelection()" style="background:none;border:1px solid var(--border);color:var(--brown);border-radius:9px;padding:10px;font-size:13px;cursor:pointer;font-family:inherit;width:100%;">← Changer de type</button>`;
+  }catch(e){
+    app.innerHTML = `<div style="text-align:center;padding:40px;color:var(--soft);">Erreur : ${e.message}</div>`;
+  }
+}
+
+function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+function minToTime(m){ return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
+
+function generateInstances(coursList, maxDays = 90){
+  const instances = [];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const endDate = new Date(today); endDate.setDate(today.getDate() + maxDays);
+
+  coursList.forEach(cours => {
+    if(cours.frequence === 'unique'){
+      const d = new Date(cours.date_debut + 'T12:00:00Z');
+      if(d >= today && d <= endDate) instances.push({ date: cours.date_debut, cours });
+      return;
+    }
+    let step = cours.frequence === 'hebdomadaire' ? 7 : cours.frequence === 'bi-hebdomadaire' ? 14 : 30;
+    const limitEnd = cours.date_fin ? new Date(Math.min(new Date(cours.date_fin + 'T12:00:00Z'), endDate)) : endDate;
+    let current = new Date(cours.date_debut + 'T12:00:00Z');
+    while(current < today) current.setDate(current.getDate() + step);
+    while(current <= limitEnd){
+      instances.push({ date: current.toISOString().slice(0,10), cours });
+      current = new Date(current); current.setDate(current.getDate() + step);
+    }
+  });
+  return instances.sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function selectCoursInstance(coursId, date, heureDebut, heureFin){
+  state.selectedCours = { id: coursId, date, heureDebut, heureFin };
+  state.selectedDate = date;
+  state.selectedSlot = heureDebut;
+  renderFormCours();
+}
+
+function renderFormCours(){
+  const d = new Date(state.selectedDate + 'T12:00:00Z');
+  const dateLabel = d.toLocaleDateString('fr-FR', {weekday:'long',day:'numeric',month:'long'});
+  const dateCapitalized = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
+
+  app.innerHTML = `
+    <h1>Tes coordonnées</h1>
+    <p class="subtitle">Dernière étape avant confirmation.</p>
+    <div class="recap">
+      <strong>${state.selectedType.nom}</strong><br>
+      ${dateCapitalized} · ${state.selectedCours.heureDebut} – ${state.selectedCours.heureFin}
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Tes informations</h2><span class="step-badge">Étape 3/3</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="field"><label>Prénom *</label><input type="text" id="f-prenom" placeholder="Prénom"></div>
+          <div class="field"><label>Nom *</label><input type="text" id="f-nom" placeholder="Nom"></div>
+        </div>
+        <div class="field"><label>Email *</label><input type="email" id="f-email" placeholder="ton@email.com"></div>
+        <div class="field"><label>Message (optionnel)</label><textarea id="f-notes" placeholder="Une question ?"></textarea></div>
+        <div class="error-msg hidden" id="formError"></div>
+        <button class="btn-primary" id="submitBtn">Confirmer mon inscription →</button>
+      </div>
+    </div>
+    <button class="btn-secondary" onclick="renderCoursProgrammes()" style="background:none;border:1px solid var(--border);color:var(--brown);border-radius:9px;padding:10px;font-size:13px;cursor:pointer;font-family:inherit;width:100%;margin-top:0;">← Autre session</button>`;
+
+  document.getElementById('submitBtn').onclick = submitBookingCours;
+}
+
+async function submitBookingCours(){
+  const prenom = document.getElementById('f-prenom').value.trim();
+  const nom = document.getElementById('f-nom').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const notes = document.getElementById('f-notes').value.trim();
+  const errEl = document.getElementById('formError');
+  if(!prenom||!nom||!email){ errEl.textContent='Prénom, nom et email sont requis.'; errEl.classList.remove('hidden'); return; }
+  const btn = document.getElementById('submitBtn');
+  btn.disabled=true; btn.textContent='Confirmation en cours…'; errEl.classList.add('hidden');
+  try{
+    const r = await fetch(`${FN_URL}/create-booking`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON}`,'apikey':SUPABASE_ANON},
+      body:JSON.stringify({
+        coach_id:COACH_ID,
+        session_type_id:state.selectedType.id,
+        cours_programme_id:state.selectedCours.id,
+        date:state.selectedDate,
+        heure_debut:state.selectedCours.heureDebut,
+        eleve_nom:`${prenom} ${nom}`,
+        eleve_prenom:prenom,
+        eleve_email:email,
+        notes
+      })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error||'Erreur');
+    renderSuccess(prenom);
+  }catch(e){
+    btn.disabled=false; btn.textContent='Confirmer mon inscription →';
+    errEl.textContent=e.message||'Une erreur est survenue.'; errEl.classList.remove('hidden');
+  }
 }
 
 /* ===== ÉTAPE 2 : Calendrier ===== */
