@@ -1438,6 +1438,17 @@
                 <option value="Pacific/Tahiti">Pacific/Tahiti (UTC-10)</option>
               </select>
             </div>
+            <div>
+              <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--brown-soft);font-weight:700;display:block;margin-bottom:6px;">Pause entre séances</label>
+              <select class="tz-select" id="bufferSelect" style="margin-bottom:0;">
+                <option value="0">Aucune pause</option>
+                <option value="5">5 min</option>
+                <option value="10">10 min</option>
+                <option value="15" selected>15 min</option>
+                <option value="20">20 min</option>
+                <option value="30">30 min</option>
+              </select>
+            </div>
           </div>
           <div id="dispoTypeMessage" style="font-size:13px;color:var(--brown-soft);padding:12px 0;">Sélectionne un type de séance pour configurer ses disponibilités.</div>
           <div class="dispo-grid hidden" id="dispoGrid"></div>
@@ -3699,8 +3710,9 @@ el('newResaBtn').onclick = () => {
 /* --- Disponibilités --- */
 async function loadDisponibilites(){
   try{
-    const profileRes = await sb.from('profiles').select('timezone').eq('id', state.user.id).single();
+    const profileRes = await sb.from('profiles').select('timezone,buffer_minutes').eq('id', state.user.id).single();
     if(profileRes.data?.timezone) el('timezoneSelect').value = profileRes.data.timezone;
+    if(profileRes.data?.buffer_minutes !== undefined) el('bufferSelect').value = String(profileRes.data.buffer_minutes);
 
     const { data: types } = await sb.from('session_types').select('id,nom').eq('coach_id', state.user.id).eq('categorie','ouvert').order('nom');
     const dispoSelect = el('dispoTypeSelect');
@@ -3755,7 +3767,7 @@ el('saveDispoBtn').onclick = async () => {
   const typeId = el('dispoTypeSelect').value;
   if(!typeId){ showToast('Sélectionne un type de séance.', true); return; }
   try{
-    await sb.from('profiles').update({timezone:el('timezoneSelect').value}).eq('id',state.user.id);
+    await sb.from('profiles').update({timezone:el('timezoneSelect').value, buffer_minutes:parseInt(el('bufferSelect').value)||0}).eq('id',state.user.id);
     await sb.from('disponibilites').delete().eq('coach_id',state.user.id).eq('session_type_id',typeId);
     const toInsert=[];
     for(let i=0;i<=6;i++){
