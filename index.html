@@ -1612,6 +1612,7 @@
         <div class="student-meta" id="drawerStudentMeta"></div>
         <div class="drawer-actions">
           <button id="drawerEditBtn">Modifier</button>
+          <button id="drawerBookBtn">📅 Réserver</button>
           <button class="danger" id="drawerDeleteBtn">Supprimer</button>
         </div>
       </div>
@@ -1619,6 +1620,27 @@
     </div>
     <div class="drawer-body">
       <div class="student-notes hidden" id="drawerStudentNotes"></div>
+
+      <!-- Panel réservation inline -->
+      <div class="inline-form hidden" id="drawerBookingPanel" style="margin-bottom:16px;">
+        <div style="font-family:'Chillax',sans-serif;font-weight:700;font-size:15px;color:var(--brown);margin-bottom:12px;">Réserver une séance</div>
+
+        <!-- Étape 1 : Type de séance -->
+        <div id="dbStep1">
+          <label>Type de séance</label>
+          <select id="db-type-select" style="width:100%;background:var(--bg);border:1px solid var(--taupe-light);color:var(--brown);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px;">
+            <option value="">Choisir…</option>
+          </select>
+          <label>Date</label>
+          <div id="dbDateList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:120px;overflow-y:auto;"></div>
+          <label>Créneau</label>
+          <div id="dbSlotList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+          <div class="form-actions">
+            <button class="btn-cancel" id="cancelDrawerBookBtn">Annuler</button>
+            <button class="btn-save" id="confirmDrawerBookBtn" disabled>Confirmer</button>
+          </div>
+        </div>
+      </div>
 
       <!-- formulaire édition inline dans le drawer -->
       <div class="drawer-edit-form hidden" id="drawerEditForm">
@@ -2517,6 +2539,159 @@ function closeDrawer(){
 
 el('drawerCloseBtn').onclick=closeDrawer;
 el('drawerBackdrop').onclick=closeDrawer;
+
+/* ----- réservation depuis le drawer ----- */
+let dbSelectedDate = null;
+let dbSelectedSlot = null;
+
+el('drawerBookBtn').onclick = async () => {
+  // Fermer les autres formulaires
+  el('drawerEditForm').classList.add('hidden');
+  el('seanceForm').classList.add('hidden');
+  const panel = el('drawerBookingPanel');
+  const isOpen = !panel.classList.contains('hidden');
+  if(isOpen){ panel.classList.add('hidden'); return; }
+
+  // Peupler les types de séances (ouvert uniquement)
+  const { data: types } = await sb.from('session_types').select('id,nom,duree_minutes,capacite').eq('coach_id', state.user.id).eq('categorie','ouvert').eq('actif', true).order('duree_minutes');
+  const typeSelect = el('db-type-select');
+  typeSelect.innerHTML = '<option value="">Choisir…</option>' +
+    (types||[]).map(t => `<option value="${t.id}" data-duree="${t.duree_minutes}">${escapeHtml(t.nom)} (${t.duree_minutes} min)</option>`).join('');
+
+  // Peupler les dates (30 prochains jours avec dispo)
+  dbSelectedDate = null; dbSelectedSlot = null;
+  el('dbSlotList').innerHTML = '';
+  el('confirmDrawerBookBtn').disabled = true;
+  await loadDbDates(types || []);
+
+  typeSelect.onchange = () => { dbSelectedDate=null; dbSelectedSlot=null; el('dbSlotList').innerHTML=''; el('confirmDrawerBookBtn').disabled=true; loadDbDates(types||[]); };
+  panel.classList.remove('hidden');
+  panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+};
+
+async function loadDbDates(types){
+  const typeId = el('db-type-select').value;
+  const dateList = el('dbDateList');
+  dateList.innerHTML = '<span style="font-size:12px;color:var(--brown-soft);">Sélectionne d\'abord un type de séance</span>';
+  if(!typeId) return;
+
+  // Récupérer les disponibilités pour ce type
+  const { data: dispos } = await sb.from('disponibilites').select('jour_semaine').eq('coach_id', state.user.id).eq('session_type_id', typeId);
+  const availDays = new Set((dispos||[]).map(d => d.jour_semaine));
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  dateList.innerHTML = '';
+
+  for(let i = 1; i <= 30; i++){
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    const jsDay = d.getDay();
+    const ourDay = jsDay === 0 ? 6 : jsDay - 1;
+    if(!availDays.has(ourDay)) continue;
+
+    const dateStr = d.toISOString().slice(0,10);
+    const label = d.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
+    const btn = document.createElement('button');
+    btn.className = 'slot' + (dbSelectedDate === dateStr ? ' selected' : '');
+    btn.style.cssText = 'font-size:11.5px;padding:6px 10px;';
+    btn.textContent = label;
+    btn.onclick = async () => {
+      dbSelectedDate = dateStr; dbSelectedSlot = null;
+      document.querySelectorAll('#dbDateList .slot').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      el('confirmDrawerBookBtn').disabled = true;
+      await loadDbSlots(dateStr, typeId);
+    };
+    dateList.appendChild(btn);
+  }
+
+  if(dateList.children.length === 0){
+    dateList.innerHTML = '<span style="font-size:12px;color:var(--brown-soft);">Aucune disponibilité dans les 30 prochains jours pour ce type.</span>';
+  }
+}
+
+async function loadDbSlots(date, typeId){
+  const slotList = el('dbSlotList');
+  slotList.innerHTML = '<span style="font-size:12px;color:var(--brown-soft);">Chargement…</span>';
+  try{
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/get-slots?coach_id=${state.user.id}&date=${date}&session_type_id=${typeId}`, {
+      headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'apikey': SUPABASE_ANON_KEY }
+    });
+    const data = await r.json();
+    const slots = (data.slots || []).map(s => typeof s === 'string' ? {time:s,remaining:1} : s);
+
+    slotList.innerHTML = '';
+    if(slots.length === 0){
+      slotList.innerHTML = '<span style="font-size:12px;color:var(--brown-soft);">Aucun créneau disponible ce jour.</span>';
+      return;
+    }
+    slots.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'slot';
+      btn.style.cssText = 'font-size:12.5px;padding:7px 12px;';
+      btn.textContent = s.time;
+      btn.onclick = () => {
+        dbSelectedSlot = s.time;
+        document.querySelectorAll('#dbSlotList .slot').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        el('confirmDrawerBookBtn').disabled = false;
+      };
+      slotList.appendChild(btn);
+    });
+  }catch(e){
+    slotList.innerHTML = `<span style="font-size:12px;color:var(--danger);">Erreur : ${escapeHtml(e.message)}</span>`;
+  }
+}
+
+el('cancelDrawerBookBtn').onclick = () => {
+  el('drawerBookingPanel').classList.add('hidden');
+  dbSelectedDate=null; dbSelectedSlot=null;
+};
+
+el('confirmDrawerBookBtn').onclick = async () => {
+  const eleve = state.eleves.find(e => e.id === state.selectedId);
+  if(!eleve || !dbSelectedDate || !dbSelectedSlot) return;
+  const typeId = el('db-type-select').value;
+  if(!typeId) return;
+
+  el('confirmDrawerBookBtn').disabled = true;
+  el('confirmDrawerBookBtn').textContent = '…';
+
+  try{
+    const session = await sb.auth.getSession();
+    const token = session.data.session?.access_token;
+
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/create-booking`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({
+        coach_id: state.user.id,
+        session_type_id: typeId,
+        date: dbSelectedDate,
+        heure_debut: dbSelectedSlot,
+        eleve_id: eleve.id,
+        eleve_nom: `${eleve.prenom||''} ${eleve.nom||''}`.trim(),
+        eleve_prenom: eleve.prenom || '',
+        eleve_email: eleve.email || ''
+      })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error || 'Erreur');
+
+    el('drawerBookingPanel').classList.add('hidden');
+    dbSelectedDate=null; dbSelectedSlot=null;
+    showToast(`✓ Séance réservée pour ${eleve.prenom} ${eleve.nom}`);
+
+    // Recharger les réservations si l'onglet Agenda est visible
+    if(document.getElementById('agenda-reservations') && !document.getElementById('agenda-reservations').classList.contains('hidden')){
+      loadReservations();
+    }
+  }catch(e){
+    showToast('Erreur : ' + e.message, true);
+  }finally{
+    el('confirmDrawerBookBtn').disabled = false;
+    el('confirmDrawerBookBtn').textContent = 'Confirmer';
+  }
+};
 
 /* ----- édition depuis le drawer ----- */
 el('drawerEditBtn').onclick=()=>{
