@@ -592,6 +592,31 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     max-width:100%;display:block;border-left:2px solid rgba(44,100,160,0.4);
   }
+  .cal-recurring-pill{
+    font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:4px;margin-bottom:2px;
+    background:rgba(45,110,70,0.13);color:#2d6e45;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    max-width:100%;display:block;border-left:2px solid rgba(45,110,70,0.4);
+    font-style:italic;
+  }
+
+  /* Récurrences dans le drawer */
+  .recurrence-section{margin-bottom:16px;padding:14px 16px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--taupe-light);}
+  .recurrence-info{font-size:13px;color:var(--brown);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .recurrence-info strong{font-weight:700;}
+  .planned-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+  .planned-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(45,110,70,0.07);border-radius:8px;border-left:3px solid #2d6e45;}
+  .planned-item.moved{background:rgba(194,89,45,0.07);border-left-color:var(--yellow);}
+  .planned-date{font-size:13px;color:var(--brown);font-weight:600;}
+  .planned-type{font-size:11.5px;color:var(--brown-soft);margin-top:1px;}
+  .btn-move{background:none;border:1px solid var(--taupe-light);color:var(--brown);padding:4px 9px;border-radius:7px;font-size:11.5px;cursor:pointer;font-family:inherit;}
+  .btn-move:hover{border-color:var(--yellow);}
+  .move-input{background:var(--bg);border:1px solid var(--taupe-light);color:var(--brown);padding:5px 8px;border-radius:7px;font-size:12px;font-family:inherit;}
+  .day-toggle-group{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+  .day-toggle{padding:6px 10px;border-radius:8px;border:1px solid var(--taupe-light);background:var(--bg);color:var(--brown-soft);font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;font-family:inherit;}
+  .day-toggle.selected{background:var(--yellow);color:var(--btn-text);border-color:var(--yellow);}
+  .btn-stop-recurrence{background:none;border:1px solid rgba(168,80,61,0.4);color:var(--danger);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;font-family:inherit;margin-top:8px;}
+  .btn-stop-recurrence:hover{background:rgba(168,80,61,0.08);}
   .cal-more{font-size:10px;color:var(--brown-soft);margin-top:1px;}
 
   /* slots sélectionnés — relief renforcé */
@@ -1633,6 +1658,41 @@
     <div class="drawer-body">
       <div class="student-notes hidden" id="drawerStudentNotes"></div>
 
+      <!-- Section récurrence -->
+      <div class="drawer-section-head" style="margin-top:0;margin-bottom:8px;">
+        <h3>Récurrence</h3>
+        <button class="btn-add" id="drawerNewRecurrenceBtn" style="font-size:12px;">+ Définir</button>
+      </div>
+      <div id="drawerRecurrenceSection" style="margin-bottom:16px;"></div>
+
+      <!-- Formulaire récurrence -->
+      <div class="inline-form hidden" id="recurrenceForm" style="margin-bottom:16px;">
+        <label>Jours de la semaine *</label>
+        <div class="day-toggle-group" id="recurrenceDayToggles">
+          <button class="day-toggle" data-day="0">Lun</button>
+          <button class="day-toggle" data-day="1">Mar</button>
+          <button class="day-toggle" data-day="2">Mer</button>
+          <button class="day-toggle" data-day="3">Jeu</button>
+          <button class="day-toggle" data-day="4">Ven</button>
+          <button class="day-toggle" data-day="5">Sam</button>
+          <button class="day-toggle" data-day="6">Dim</button>
+        </div>
+        <div class="form-row">
+          <div>
+            <label>Type de cours</label>
+            <select id="f-rec-type">
+              <option value="Coaching vocal">Coaching vocal</option>
+              <option value="Clarity Session">Clarity Session</option>
+            </select>
+          </div>
+          <div><label>Date de début *</label><input type="date" id="f-rec-debut"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-cancel" id="cancelRecurrenceBtn">Annuler</button>
+          <button class="btn-save" id="saveRecurrenceBtn">Créer la récurrence</button>
+        </div>
+      </div>
+
       <!-- Panel réservation inline -->
       <div class="inline-form hidden" id="drawerBookingPanel" style="margin-bottom:16px;">
         <div style="font-family:'Chillax',sans-serif;font-weight:700;font-size:15px;color:var(--brown);margin-bottom:12px;">Réserver une séance</div>
@@ -1929,6 +1989,10 @@
 
       <!-- formulaire de séance (partagé calendrier + drawer) -->
       <div class="inline-form hidden" id="seanceForm" style="margin-bottom:16px;">
+        <input type="hidden" id="f-seance-reservation-id">
+        <div id="seanceFromRdv" class="hidden" style="background:rgba(44,100,160,0.08);border:1px solid rgba(44,100,160,0.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12.5px;color:#2c64a0;">
+          📅 Notes liées au RDV du <span id="seanceRdvLabel"></span>
+        </div>
         <div class="form-row">
           <div><label>Date</label><input type="date" id="f-seance-date"></div>
           <div>
@@ -2184,12 +2248,16 @@ async function initApp(){
 }
 
 async function loadData(){
-  const[eleveRes,seanceRes,exerciceRes,repertoireRes,reservationRes]=await Promise.all([
+  const[eleveRes,seanceRes,exerciceRes,repertoireRes,reservationRes,recurrenceRes,exceptionRes]=await Promise.all([
     sb.from('eleves').select('*').order('nom',{ascending:true}),
     sb.from('seances').select('*').order('date',{ascending:false}),
     sb.from('exercices').select('*'),
     sb.from('repertoire').select('*').order('titre',{ascending:true}),
-    sb.from('reservations').select('id,date,heure_debut,heure_fin,eleve_nom,session_type_nom,statut').eq('coach_id',state.user.id).eq('statut','confirmee')
+    sb.from('reservations').select('id,date,heure_debut,heure_fin,eleve_nom,session_type_nom,statut').eq('coach_id',state.user.id).eq('statut','confirmee'),
+    sb.from('recurrences').select('*').eq('coach_id',state.user.id).eq('actif',true),
+    sb.from('recurrence_exceptions').select('*').in('recurrence_id',
+      (await sb.from('recurrences').select('id').eq('coach_id',state.user.id)).data?.map(r=>r.id)||[]
+    )
   ]);
   if(eleveRes.error) throw eleveRes.error;
   if(seanceRes.error) throw seanceRes.error;
@@ -2200,6 +2268,8 @@ async function loadData(){
   state.exercices=exerciceRes.data||[];
   state.repertoire=repertoireRes.data||[];
   state.reservations=reservationRes.data||[];
+  state.recurrences=recurrenceRes.data||[];
+  state.recurrenceExceptions=exceptionRes.data||[];
 }
 
 /* ============================================================
@@ -2277,13 +2347,24 @@ function renderCalendar(){
     seancesByDay[d].push(s);
   });
 
-  // Index des réservations par date
+  // Index des réservations par date — avec flag "has_notes" si une séance est liée
   const bookingsByDay={};
+  const seancesByResaId={};
+  state.seances.forEach(s=>{ if(s.reservation_id) seancesByResaId[s.reservation_id]=s; });
   (state.reservations||[]).forEach(r=>{
     if(!r.date) return;
     const d=r.date.slice(0,10);
     if(!bookingsByDay[d]) bookingsByDay[d]=[];
-    bookingsByDay[d].push(r);
+    bookingsByDay[d].push({ ...r, hasNotes: !!seancesByResaId[r.id] });
+  });
+
+  // Index des séances récurrentes planifiées par date
+  const recurringByDay={};
+  getAllRecurringInstances(8).forEach(inst=>{
+    if(!recurringByDay[inst.date]) recurringByDay[inst.date]=[];
+    const rec=inst.recurrence;
+    const eleve=state.eleves.find(e=>e.id===rec.eleve_id);
+    recurringByDay[inst.date].push({ name: eleve?`${eleve.prenom||''} ${eleve.nom||''}`.trim():'Élève', type: rec.type_cours });
   });
 
   // Générer les cellules
@@ -2291,27 +2372,28 @@ function renderCalendar(){
   for(let i=startDow-1;i>=0;i--){
     const day=daysInPrevMonth-i;
     const cellDate=new Date(y,m-1,day);
-    appendDayCell(grid, cellDate, day, true, seancesByDay, bookingsByDay, today);
+    appendDayCell(grid, cellDate, day, true, seancesByDay, bookingsByDay, recurringByDay, today);
     cellCount++;
   }
   for(let d=1;d<=daysInMonth;d++){
     const cellDate=new Date(y,m,d);
-    appendDayCell(grid, cellDate, d, false, seancesByDay, bookingsByDay, today);
+    appendDayCell(grid, cellDate, d, false, seancesByDay, bookingsByDay, recurringByDay, today);
     cellCount++;
   }
   const remaining=(cellCount%7)===0?0:7-(cellCount%7);
   for(let d=1;d<=remaining;d++){
     const cellDate=new Date(y,m+1,d);
-    appendDayCell(grid, cellDate, d, true, seancesByDay, bookingsByDay, today);
+    appendDayCell(grid, cellDate, d, true, seancesByDay, bookingsByDay, recurringByDay, today);
   }
 
   if(state.selectedDay) renderDayPanel(state.selectedDay);
 }
 
-function appendDayCell(grid, cellDate, dayNum, isOtherMonth, seancesByDay, bookingsByDay, today){
+function appendDayCell(grid, cellDate, dayNum, isOtherMonth, seancesByDay, bookingsByDay, recurringByDay, today){
   const dateStr=`${cellDate.getFullYear()}-${String(cellDate.getMonth()+1).padStart(2,'0')}-${String(cellDate.getDate()).padStart(2,'0')}`;
   const seances=seancesByDay[dateStr]||[];
   const bookings=(bookingsByDay||{})[dateStr]||[];
+  const recurring=(recurringByDay||{})[dateStr]||[];
   const isToday=cellDate.getTime()===today.getTime();
   const isSelected=state.selectedDay===dateStr;
 
@@ -2324,33 +2406,39 @@ function appendDayCell(grid, cellDate, dayNum, isOtherMonth, seancesByDay, booki
   numEl.textContent=dayNum;
   cell.appendChild(numEl);
 
-  // Afficher séances (orange) et réservations (bleu), max 3 au total
   const maxShown=3;
   let shown=0;
 
-  // Réservations d'abord (RDV à venir)
+  // RDV bookés — orange si notes liées, bleu si pas encore
   bookings.forEach(r=>{
     if(shown>=maxShown) return;
     const pill=document.createElement('span');
-    pill.className='cal-booking-pill';
+    pill.className=r.hasNotes?'cal-session-pill':'cal-booking-pill';
     pill.textContent=r.eleve_nom||'RDV';
-    cell.appendChild(pill);
-    shown++;
+    cell.appendChild(pill); shown++;
   });
 
-  // Puis les séances (notes prises)
-  seances.forEach(s=>{
+  // Séances récurrentes planifiées (vert)
+  recurring.forEach(r=>{
+    if(shown>=maxShown) return;
+    const pill=document.createElement('span');
+    pill.className='cal-recurring-pill';
+    pill.textContent=r.name;
+    cell.appendChild(pill); shown++;
+  });
+
+  // Séances standalone sans RDV (orange)
+  seances.filter(s=>!s.reservation_id).forEach(s=>{
     if(shown>=maxShown) return;
     const eleve=state.eleves.find(e=>e.id===s.eleve_id);
     const name=eleve?`${eleve.prenom||''} ${eleve.nom||''}`.trim():'Élève';
     const pill=document.createElement('span');
     pill.className='cal-session-pill'+(s.type_cours==='Clarity Session'?' clarity':'');
     pill.textContent=name;
-    cell.appendChild(pill);
-    shown++;
+    cell.appendChild(pill); shown++;
   });
 
-  const total=seances.length+bookings.length;
+  const total=seances.length+bookings.length+recurring.length;
   if(total>maxShown){
     const more=document.createElement('span');
     more.className='cal-more';
@@ -2363,11 +2451,7 @@ function appendDayCell(grid, cellDate, dayNum, isOtherMonth, seancesByDay, booki
     cell.appendChild(dot);
   }
 
-  cell.onclick=()=>{
-    state.selectedDay=dateStr;
-    renderCalendar();
-    renderDayPanel(dateStr);
-  };
+  cell.onclick=()=>{ state.selectedDay=dateStr; renderCalendar(); renderDayPanel(dateStr); };
   grid.appendChild(cell);
 }
 
@@ -2379,9 +2463,34 @@ function renderDayPanel(dateStr){
   const dayLabel=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const dayLabel2=dayLabel.charAt(0).toUpperCase()+dayLabel.slice(1);
 
+  // Séances du jour
   const seancesOfDay=state.seances.filter(s=>s.date&&s.date.slice(0,10)===dateStr);
+  // RDV du jour
   const bookingsOfDay=(state.reservations||[]).filter(r=>r.date&&r.date.slice(0,10)===dateStr);
-  const hasAnything = seancesOfDay.length > 0 || bookingsOfDay.length > 0;
+
+  // Construire une liste unifiée d'événements
+  // Un RDV avec notes liées = un seul événement orange
+  // Un RDV sans notes = événement bleu avec bouton "Prendre des notes"
+  // Une séance sans RDV = événement orange standalone
+  const seancesByResaId={};
+  seancesOfDay.forEach(s=>{ if(s.reservation_id) seancesByResaId[s.reservation_id]=s; });
+
+  const events=[];
+  const seanceStandaloneIds=new Set(seancesOfDay.filter(s=>!s.reservation_id).map(s=>s.id));
+
+  // Événements depuis les RDV
+  bookingsOfDay.forEach(r=>{
+    const linkedSeance=seancesByResaId[r.id];
+    events.push({ type:'booking', booking:r, seance:linkedSeance||null });
+  });
+
+  // Séances sans RDV (standalone)
+  seancesOfDay.filter(s=>!s.reservation_id).forEach(s=>{
+    const eleve=state.eleves.find(e=>e.id===s.eleve_id);
+    events.push({ type:'seance', seance:s, eleve });
+  });
+
+  const hasAnything=events.length>0;
 
   panel.innerHTML=`
     <div class="day-panel">
@@ -2390,28 +2499,49 @@ function renderDayPanel(dateStr){
         <button class="day-panel-close" id="dayPanelCloseBtn">✕</button>
       </div>
       <div class="day-panel-body">
-        ${!hasAnything ? '<p style="font-size:13px;color:var(--brown-soft);margin:0 0 14px;">Aucune séance ce jour.</p>' : ''}
-        ${bookingsOfDay.map(r=>`
-          <div class="day-seance-item" style="border-left:3px solid #2c64a0;">
-            <div>
-              <div class="day-seance-student">${escapeHtml(r.eleve_nom||'Élève')}</div>
-              <div class="day-seance-type" style="color:#2c64a0;">📅 ${escapeHtml(r.session_type_nom||'RDV')} · ${r.heure_debut?r.heure_debut.slice(0,5):''}</div>
-            </div>
-            <span style="font-size:10px;background:rgba(44,100,160,0.12);color:#2c64a0;padding:2px 7px;border-radius:999px;font-weight:700;">RDV</span>
-          </div>`).join('')}
-        ${seancesOfDay.map(s=>{
-          const eleve=state.eleves.find(e=>e.id===s.eleve_id);
-          const name=eleve?`${eleve.prenom||''} ${eleve.nom||''}`.trim():'Élève inconnu';
-          return `<div class="day-seance-item" data-eleve="${s.eleve_id}">
-            <div>
-              <div class="day-seance-student">${escapeHtml(name)}</div>
-              <div class="day-seance-type">${escapeHtml(s.type_cours||'Coaching vocal')}</div>
-            </div>
-            <span style="font-size:11px;color:var(--brown-soft);">→</span>
-          </div>`;
+        ${!hasAnything?'<p style="font-size:13px;color:var(--brown-soft);margin:0 0 14px;">Aucune séance ce jour.</p>':''}
+
+        ${events.map((evt,i)=>{
+          if(evt.type==='booking'){
+            const r=evt.booking;
+            const s=evt.seance;
+            const hasNotes=!!s;
+            const eleve=s?state.eleves.find(e=>e.id===s.eleve_id):null;
+            const name=r.eleve_nom||'Élève';
+            return `<div class="day-seance-item" style="border-left:3px solid ${hasNotes?'var(--yellow)':'#2c64a0'};cursor:default;" data-booking-idx="${i}">
+              <div style="flex:1;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div class="day-seance-student">${escapeHtml(name)}</div>
+                  ${hasNotes?'<span style="font-size:10px;background:rgba(194,89,45,0.12);color:var(--yellow);padding:2px 7px;border-radius:999px;font-weight:700;">✓ Notes</span>':'<span style="font-size:10px;background:rgba(44,100,160,0.12);color:#2c64a0;padding:2px 7px;border-radius:999px;font-weight:700;">RDV</span>'}
+                </div>
+                <div class="day-seance-type" style="color:${hasNotes?'var(--brown-soft)':'#2c64a0'};">${escapeHtml(r.session_type_nom||'RDV')}${r.heure_debut?' · '+r.heure_debut.slice(0,5):''}</div>
+                ${hasNotes&&s.remarques?`<div style="font-size:11.5px;color:var(--brown-soft);margin-top:4px;border-top:1px solid var(--taupe-light);padding-top:4px;">${escapeHtml(s.remarques.slice(0,80))}${s.remarques.length>80?'…':''}</div>`:''}
+              </div>
+              <div style="display:flex;gap:6px;flex-shrink:0;">
+                ${hasNotes
+                  ? `<button class="resa-btn" style="font-size:11px;" data-eleve="${s.eleve_id}" data-open-drawer="1">Voir fiche →</button>`
+                  : `<button class="resa-btn" style="font-size:11px;color:var(--yellow);border-color:rgba(194,89,45,0.3);" data-booking-id="${r.id}" data-eleve-nom="${escapeHtml(r.eleve_nom||'')}" data-date="${dateStr}" data-type="${escapeHtml(r.session_type_nom||'Coaching vocal')}" data-take-notes="1">+ Notes</button>`
+                }
+              </div>
+            </div>`;
+          } else {
+            // Séance standalone (sans RDV)
+            const s=evt.seance;
+            const eleve=evt.eleve;
+            const name=eleve?`${eleve.prenom||''} ${eleve.nom||''}`.trim():'Élève inconnu';
+            return `<div class="day-seance-item" data-eleve="${s.eleve_id}">
+              <div>
+                <div class="day-seance-student">${escapeHtml(name)}</div>
+                <div class="day-seance-type">${escapeHtml(s.type_cours||'Coaching vocal')}</div>
+                ${s.remarques?`<div style="font-size:11.5px;color:var(--brown-soft);margin-top:4px;">${escapeHtml(s.remarques.slice(0,60))}${s.remarques.length>60?'…':''}</div>`:''}
+              </div>
+              <span style="font-size:11px;color:var(--brown-soft);">→</span>
+            </div>`;
+          }
         }).join('')}
+
         <div class="day-panel-add">
-          <button class="btn-add" id="dayAddSeanceBtn" style="font-size:13px;">+ Ajouter une séance</button>
+          <button class="btn-add" id="dayAddSeanceBtn" style="font-size:13px;">+ Séance sans RDV</button>
           <div class="day-add-form hidden" id="dayAddForm">
             <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--brown-soft);">Élève</label>
             <select id="dayEleveSelect">
@@ -2433,16 +2563,49 @@ function renderDayPanel(dateStr){
     state.selectedDay=null;
     panel.classList.add('hidden');
     panel.innerHTML='';
-    // retirer la sélection sur la grille
     document.querySelectorAll('.cal-day.selected').forEach(c=>c.classList.remove('selected'));
   };
 
-  // Clic sur une séance → ouvre le drawer de l'élève
+  // Clic "Voir fiche" → ouvre le drawer
+  panel.querySelectorAll('[data-open-drawer]').forEach(btn=>{
+    btn.onclick=()=>openDrawer(btn.dataset.eleve);
+  });
+
+  // Clic séance standalone → ouvre le drawer
   panel.querySelectorAll('.day-seance-item[data-eleve]').forEach(item=>{
     item.onclick=()=>openDrawer(item.dataset.eleve);
   });
 
-  // Bouton ajouter une séance
+  // Bouton "+ Notes" → ouvre le formulaire de séance pré-lié au RDV
+  panel.querySelectorAll('[data-take-notes]').forEach(btn=>{
+    btn.onclick=()=>{
+      const bookingId=btn.dataset.bookingId;
+      const eleveNom=btn.dataset.eleveNom;
+      const date=btn.dataset.date;
+      const typeCours=btn.dataset.type;
+
+      // Trouver l'élève dans state.eleves par nom (approximatif)
+      // On ouvre le drawer du premier élève qui correspond au nom
+      const resa=state.reservations.find(r=>r.id===bookingId);
+      if(!resa) return;
+
+      // Chercher l'élève par eleve_id si dispo, sinon par nom
+      const eleveId = resa.eleve_id || state.eleves.find(e=>`${e.prenom||''} ${e.nom||''}`.trim()===eleveNom)?.id;
+
+      if(eleveId){
+        openDrawer(eleveId, ()=>{
+          setTimeout(()=>{
+            // Ouvrir le formulaire de séance pré-lié au RDV
+            openSeanceFromBooking(bookingId, date, typeCours);
+          }, 100);
+        });
+      } else {
+        showToast('Crée le profil de cet élève dans la liste Élèves pour prendre des notes.', true);
+      }
+    };
+  });
+
+  // Bouton ajouter une séance standalone
   el('dayAddSeanceBtn').onclick=()=>{
     el('dayAddForm').classList.remove('hidden');
     el('dayAddSeanceBtn').classList.add('hidden');
@@ -2596,6 +2759,7 @@ function openDrawer(eleveId, callback){
   el('studentDrawer').classList.add('open');
 
   renderSeances(eleveId);
+  renderDrawerRecurrence(eleveId);
 
   if(callback) callback();
 }
@@ -2843,6 +3007,179 @@ el('drawerDeleteBtn').onclick=async()=>{
 };
 
 /* ============================================================
+   RÉCURRENCES
+   ============================================================ */
+const DAYS_LABEL = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+const DAYS_FULL = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+
+let selectedRecurrenceDays = [];
+
+function generateRecurrenceInstances(rec, exceptions, weeksAhead = 7){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(today); end.setDate(today.getDate() + weeksAhead * 7);
+  const limitEnd = rec.date_fin ? new Date(Math.min(new Date(rec.date_fin+'T12:00:00Z'), end)) : end;
+  const startDate = new Date(Math.max(new Date(rec.date_debut+'T12:00:00Z'), today));
+  const instances = [];
+  const cur = new Date(startDate);
+  while(cur <= limitEnd){
+    const jsDay = cur.getDay();
+    const ourDay = jsDay === 0 ? 6 : jsDay - 1;
+    if((rec.jours_semaine||[]).includes(ourDay)){
+      const dateStr = cur.toISOString().slice(0,10);
+      const exc = (exceptions||[]).find(e => e.recurrence_id === rec.id && e.original_date === dateStr);
+      if(!exc){
+        instances.push({ date: dateStr, recurrence: rec, status: 'planned' });
+      } else if(exc.new_date){
+        instances.push({ date: exc.new_date, originalDate: dateStr, recurrence: rec, status: 'moved' });
+      }
+      // null new_date = annulée, on ignore
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return instances.sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function getAllRecurringInstances(weeksAhead = 7){
+  const all = [];
+  (state.recurrences||[]).forEach(rec => {
+    const exc = (state.recurrenceExceptions||[]).filter(e => e.recurrence_id === rec.id);
+    generateRecurrenceInstances(rec, exc, weeksAhead).forEach(inst => all.push(inst));
+  });
+  return all;
+}
+
+function renderDrawerRecurrence(eleveId){
+  const section = el('drawerRecurrenceSection');
+  const rec = (state.recurrences||[]).find(r => r.eleve_id === eleveId);
+
+  if(!rec){
+    section.innerHTML = '<p style="font-size:12.5px;color:var(--brown-soft);margin:0 0 4px;">Aucune récurrence définie.</p>';
+    return;
+  }
+
+  const exc = (state.recurrenceExceptions||[]).filter(e => e.recurrence_id === rec.id);
+  const instances = generateRecurrenceInstances(rec, exc, 7);
+  const jours = (rec.jours_semaine||[]).map(d => DAYS_LABEL[d]).join(' · ');
+
+  section.innerHTML = `
+    <div class="recurrence-section">
+      <div class="recurrence-info">
+        <span style="font-size:16px;">🔁</span>
+        <div>
+          <strong>Tous les ${jours}</strong>
+          <div style="font-size:11.5px;color:var(--brown-soft);">Depuis le ${new Date(rec.date_debut+'T12:00:00Z').toLocaleDateString('fr-FR')} · ${rec.type_cours}</div>
+        </div>
+      </div>
+      <div class="planned-list" id="plannedList">
+        ${instances.length === 0
+          ? '<p style="font-size:12px;color:var(--brown-soft);margin:0;">Aucune séance planifiée dans les 7 prochaines semaines.</p>'
+          : instances.map(inst => {
+              const d = new Date(inst.date+'T12:00:00Z');
+              const label = d.toLocaleDateString('fr-FR', {weekday:'long',day:'numeric',month:'long'});
+              const labelCapitalized = label.charAt(0).toUpperCase() + label.slice(1);
+              return `<div class="planned-item${inst.status==='moved'?' moved':''}" data-original="${inst.originalDate||inst.date}" data-recurrence="${rec.id}">
+                <div>
+                  <div class="planned-date">${labelCapitalized}${inst.status==='moved'?' <span style="font-size:10px;color:var(--yellow);">déplacée</span>':''}</div>
+                  <div class="planned-type">${rec.type_cours}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input type="date" class="move-input hidden" id="move-${inst.originalDate||inst.date}">
+                  <button class="btn-move" onclick="toggleMoveInput('${inst.originalDate||inst.date}','${rec.id}')">Déplacer</button>
+                </div>
+              </div>`;
+            }).join('')}
+      </div>
+      <button class="btn-stop-recurrence" onclick="stopRecurrence('${rec.id}')">Arrêter la récurrence</button>
+    </div>`;
+}
+
+window.toggleMoveInput = (originalDate, recId) => {
+  const input = el('move-'+originalDate);
+  if(!input) return;
+  if(input.classList.contains('hidden')){
+    input.classList.remove('hidden');
+    input.value = '';
+    input.focus();
+    input.onchange = async () => {
+      const newDate = input.value;
+      if(!newDate) return;
+      try{
+        await sb.from('recurrence_exceptions').upsert({
+          recurrence_id: recId,
+          original_date: originalDate,
+          new_date: newDate
+        }, { onConflict: 'recurrence_id,original_date' });
+        // Mettre à jour le state local
+        const existing = (state.recurrenceExceptions||[]).findIndex(e => e.recurrence_id===recId && e.original_date===originalDate);
+        if(existing >= 0) state.recurrenceExceptions[existing].new_date = newDate;
+        else state.recurrenceExceptions = [...(state.recurrenceExceptions||[]), { recurrence_id:recId, original_date:originalDate, new_date:newDate }];
+        renderDrawerRecurrence(state.selectedId);
+        renderCalendar();
+        showToast('Séance déplacée ✓');
+      }catch(e){ showToast('Erreur : '+e.message, true); }
+    };
+  } else {
+    input.classList.add('hidden');
+  }
+};
+
+window.stopRecurrence = async (recId) => {
+  if(!confirm('Arrêter cette récurrence ? Les séances passées restent inchangées.')) return;
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    await sb.from('recurrences').update({ actif: false, date_fin: today }).eq('id', recId);
+    state.recurrences = (state.recurrences||[]).filter(r => r.id !== recId);
+    renderDrawerRecurrence(state.selectedId);
+    renderCalendar();
+    showToast('Récurrence arrêtée');
+  }catch(e){ showToast('Erreur : '+e.message, true); }
+};
+
+/* --- Formulaire de création de récurrence --- */
+el('recurrenceDayToggles').querySelectorAll('.day-toggle').forEach(btn => {
+  btn.onclick = () => {
+    const day = parseInt(btn.dataset.day);
+    btn.classList.toggle('selected');
+    if(btn.classList.contains('selected')) selectedRecurrenceDays.push(day);
+    else selectedRecurrenceDays = selectedRecurrenceDays.filter(d => d !== day);
+  };
+});
+
+el('drawerNewRecurrenceBtn').onclick = () => {
+  const existing = (state.recurrences||[]).find(r => r.eleve_id === state.selectedId);
+  if(existing){ showToast('Une récurrence existe déjà pour cet·te élève.', true); return; }
+  selectedRecurrenceDays = [];
+  el('recurrenceDayToggles').querySelectorAll('.day-toggle').forEach(b => b.classList.remove('selected'));
+  el('f-rec-debut').value = new Date().toISOString().slice(0,10);
+  el('f-rec-type').value = 'Coaching vocal';
+  el('recurrenceForm').classList.remove('hidden');
+  el('recurrenceForm').scrollIntoView({ behavior:'smooth', block:'nearest' });
+};
+
+el('cancelRecurrenceBtn').onclick = () => el('recurrenceForm').classList.add('hidden');
+
+el('saveRecurrenceBtn').onclick = async () => {
+  if(selectedRecurrenceDays.length === 0){ showToast('Sélectionne au moins un jour.', true); return; }
+  const dateDebut = el('f-rec-debut').value;
+  if(!dateDebut){ showToast('Date de début requise.', true); return; }
+  try{
+    const { data, error } = await sb.from('recurrences').insert({
+      coach_id: state.user.id,
+      eleve_id: state.selectedId,
+      jours_semaine: selectedRecurrenceDays.sort(),
+      type_cours: el('f-rec-type').value,
+      date_debut: dateDebut
+    }).select().single();
+    if(error) throw error;
+    state.recurrences = [...(state.recurrences||[]), data];
+    el('recurrenceForm').classList.add('hidden');
+    renderDrawerRecurrence(state.selectedId);
+    renderCalendar();
+    showToast('Récurrence créée ✓');
+  }catch(e){ showToast('Erreur : '+e.message, true); }
+};
+
+/* ============================================================
    SÉANCES (dans le drawer)
    ============================================================ */
 function renderSeances(eleveId){
@@ -2979,6 +3316,8 @@ el('drawerNewSeanceBtn').onclick=()=>{
   ['exercices','repertoire','remarques'].forEach(f=>el('f-seance-'+f).value='');
   el('f-seance-morceau-search').value='';
   el('morceauSelectedTag').innerHTML='';
+  el('f-seance-reservation-id').value='';
+  el('seanceFromRdv').classList.add('hidden');
   state.selectedBiblio=[];
   el('f-seance-biblio-search').value='';
   renderBiblioChips();
@@ -2988,8 +3327,35 @@ el('drawerNewSeanceBtn').onclick=()=>{
 el('cancelSeanceBtn').onclick=()=>{
   state.editingSeanceId=null;
   el('saveSeanceBtn').textContent='Enregistrer';
+  el('f-seance-reservation-id').value='';
+  el('seanceFromRdv').classList.add('hidden');
   el('seanceForm').classList.add('hidden');
 };
+
+function openSeanceFromBooking(bookingId, date, typeCours){
+  state.editingSeanceId=null;
+  selectedMorceauId=null;
+  el('saveSeanceBtn').textContent='Enregistrer';
+  el('f-seance-date').value=date;
+  el('f-seance-type').value=typeCours||'Coaching vocal';
+  ['exercices','repertoire','remarques'].forEach(f=>el('f-seance-'+f).value='');
+  el('f-seance-morceau-search').value='';
+  el('morceauSelectedTag').innerHTML='';
+  state.selectedBiblio=[];
+  el('f-seance-biblio-search').value='';
+  renderBiblioChips();
+  // Lier au RDV
+  el('f-seance-reservation-id').value=bookingId;
+  const resa=state.reservations.find(r=>r.id===bookingId);
+  if(resa){
+    const d=new Date(date+'T12:00:00Z');
+    const label=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    el('seanceRdvLabel').textContent=`${label.charAt(0).toUpperCase()+label.slice(1)}${resa.heure_debut?' à '+resa.heure_debut.slice(0,5):''}`;
+    el('seanceFromRdv').classList.remove('hidden');
+  }
+  el('seanceForm').classList.remove('hidden');
+  el('seanceForm').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
 
 function openSeanceEditForm(s){
   state.editingSeanceId=s.id;
@@ -3011,6 +3377,7 @@ el('saveSeanceBtn').onclick=async()=>{
   if(!eleve) return;
   const date=el('f-seance-date').value;
   if(!date){alert('La date est requise.');return;}
+  const reservationId = el('f-seance-reservation-id').value || null;
   const payload={
     date,
     type_cours:el('f-seance-type').value,
@@ -3020,7 +3387,8 @@ el('saveSeanceBtn').onclick=async()=>{
     remarques:el('f-seance-remarques').value.trim(),
     repertoire_id:selectedMorceauId||null,
     morceau_titre: selectedMorceauId ? (state.repertoire.find(m=>m.id===selectedMorceauId)||{}).titre||null : null,
-    morceau_artiste: selectedMorceauId ? (state.repertoire.find(m=>m.id===selectedMorceauId)||{}).artiste||null : null
+    morceau_artiste: selectedMorceauId ? (state.repertoire.find(m=>m.id===selectedMorceauId)||{}).artiste||null : null,
+    reservation_id: reservationId
   };
   try{
     if(state.editingSeanceId){
@@ -3035,10 +3403,12 @@ el('saveSeanceBtn').onclick=async()=>{
       if(error) throw error;
       state.seances.push(data);
     }
-    // reset morceau sélectionné
+    // reset morceau et reservation
     selectedMorceauId=null;
     el('morceauSelectedTag').innerHTML='';
     el('f-seance-morceau-search').value='';
+    el('f-seance-reservation-id').value='';
+    el('seanceFromRdv').classList.add('hidden');
     el('seanceForm').classList.add('hidden');
     renderSeances(eleve.id);
     renderCalendar();
