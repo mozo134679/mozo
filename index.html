@@ -586,7 +586,19 @@
     max-width:100%;display:block;
   }
   .cal-session-pill.clarity{background:rgba(62,44,35,0.1);color:var(--brown);}
+  .cal-booking-pill{
+    font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:4px;margin-bottom:2px;
+    background:rgba(44,100,160,0.13);color:#2c64a0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    max-width:100%;display:block;border-left:2px solid rgba(44,100,160,0.4);
+  }
   .cal-more{font-size:10px;color:var(--brown-soft);margin-top:1px;}
+
+  /* slots sélectionnés — relief renforcé */
+  .slot{padding:9px 14px;border-radius:8px;border:1px solid var(--taupe-light);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+  .slot:hover{border-color:var(--yellow);color:var(--yellow);}
+  .slot.selected{background:var(--yellow);color:var(--btn-text);border-color:var(--yellow);box-shadow:0 0 0 3px rgba(194,89,45,0.22);font-weight:700;transform:scale(1.04);}
+  .slot.selected:hover{background:var(--yellow);}
 
   /* ---------- panneau de jour ---------- */
   .day-panel{
@@ -2172,11 +2184,12 @@ async function initApp(){
 }
 
 async function loadData(){
-  const[eleveRes,seanceRes,exerciceRes,repertoireRes]=await Promise.all([
+  const[eleveRes,seanceRes,exerciceRes,repertoireRes,reservationRes]=await Promise.all([
     sb.from('eleves').select('*').order('nom',{ascending:true}),
     sb.from('seances').select('*').order('date',{ascending:false}),
     sb.from('exercices').select('*'),
-    sb.from('repertoire').select('*').order('titre',{ascending:true})
+    sb.from('repertoire').select('*').order('titre',{ascending:true}),
+    sb.from('reservations').select('id,date,heure_debut,heure_fin,eleve_nom,session_type_nom,statut').eq('coach_id',state.user.id).eq('statut','confirmee')
   ]);
   if(eleveRes.error) throw eleveRes.error;
   if(seanceRes.error) throw seanceRes.error;
@@ -2186,6 +2199,7 @@ async function loadData(){
   state.seances=seanceRes.data||[];
   state.exercices=exerciceRes.data||[];
   state.repertoire=repertoireRes.data||[];
+  state.reservations=reservationRes.data||[];
 }
 
 /* ============================================================
@@ -2263,35 +2277,41 @@ function renderCalendar(){
     seancesByDay[d].push(s);
   });
 
+  // Index des réservations par date
+  const bookingsByDay={};
+  (state.reservations||[]).forEach(r=>{
+    if(!r.date) return;
+    const d=r.date.slice(0,10);
+    if(!bookingsByDay[d]) bookingsByDay[d]=[];
+    bookingsByDay[d].push(r);
+  });
+
   // Générer les cellules
   let cellCount=0;
-  // Jours du mois précédent
   for(let i=startDow-1;i>=0;i--){
     const day=daysInPrevMonth-i;
     const cellDate=new Date(y,m-1,day);
-    appendDayCell(grid, cellDate, day, true, seancesByDay, today);
+    appendDayCell(grid, cellDate, day, true, seancesByDay, bookingsByDay, today);
     cellCount++;
   }
-  // Jours du mois courant
   for(let d=1;d<=daysInMonth;d++){
     const cellDate=new Date(y,m,d);
-    appendDayCell(grid, cellDate, d, false, seancesByDay, today);
+    appendDayCell(grid, cellDate, d, false, seancesByDay, bookingsByDay, today);
     cellCount++;
   }
-  // Jours du mois suivant
   const remaining=(cellCount%7)===0?0:7-(cellCount%7);
   for(let d=1;d<=remaining;d++){
     const cellDate=new Date(y,m+1,d);
-    appendDayCell(grid, cellDate, d, true, seancesByDay, today);
+    appendDayCell(grid, cellDate, d, true, seancesByDay, bookingsByDay, today);
   }
 
-  // Restaurer le panneau du jour sélectionné
   if(state.selectedDay) renderDayPanel(state.selectedDay);
 }
 
-function appendDayCell(grid, cellDate, dayNum, isOtherMonth, seancesByDay, today){
+function appendDayCell(grid, cellDate, dayNum, isOtherMonth, seancesByDay, bookingsByDay, today){
   const dateStr=`${cellDate.getFullYear()}-${String(cellDate.getMonth()+1).padStart(2,'0')}-${String(cellDate.getDate()).padStart(2,'0')}`;
   const seances=seancesByDay[dateStr]||[];
+  const bookings=(bookingsByDay||{})[dateStr]||[];
   const isToday=cellDate.getTime()===today.getTime();
   const isSelected=state.selectedDay===dateStr;
 
@@ -2304,22 +2324,39 @@ function appendDayCell(grid, cellDate, dayNum, isOtherMonth, seancesByDay, today
   numEl.textContent=dayNum;
   cell.appendChild(numEl);
 
-  // Afficher jusqu'à 2 séances, puis "+N autres"
-  const maxShown=2;
-  seances.slice(0,maxShown).forEach(s=>{
+  // Afficher séances (orange) et réservations (bleu), max 3 au total
+  const maxShown=3;
+  let shown=0;
+
+  // Réservations d'abord (RDV à venir)
+  bookings.forEach(r=>{
+    if(shown>=maxShown) return;
+    const pill=document.createElement('span');
+    pill.className='cal-booking-pill';
+    pill.textContent=r.eleve_nom||'RDV';
+    cell.appendChild(pill);
+    shown++;
+  });
+
+  // Puis les séances (notes prises)
+  seances.forEach(s=>{
+    if(shown>=maxShown) return;
     const eleve=state.eleves.find(e=>e.id===s.eleve_id);
     const name=eleve?`${eleve.prenom||''} ${eleve.nom||''}`.trim():'Élève';
     const pill=document.createElement('span');
     pill.className='cal-session-pill'+(s.type_cours==='Clarity Session'?' clarity':'');
     pill.textContent=name;
     cell.appendChild(pill);
+    shown++;
   });
-  if(seances.length>maxShown){
+
+  const total=seances.length+bookings.length;
+  if(total>maxShown){
     const more=document.createElement('span');
     more.className='cal-more';
-    more.textContent=`+${seances.length-maxShown} autre${seances.length-maxShown>1?'s':''}`;
+    more.textContent=`+${total-maxShown} autre${total-maxShown>1?'s':''}`;
     cell.appendChild(more);
-  } else if(seances.length===0&&!isOtherMonth){
+  } else if(total===0&&!isOtherMonth){
     const dot=document.createElement('span');
     dot.style.cssText='font-size:9px;color:var(--taupe-light);';
     dot.textContent='·';
@@ -2328,7 +2365,7 @@ function appendDayCell(grid, cellDate, dayNum, isOtherMonth, seancesByDay, today
 
   cell.onclick=()=>{
     state.selectedDay=dateStr;
-    renderCalendar(); // redessine pour mettre à jour .selected
+    renderCalendar();
     renderDayPanel(dateStr);
   };
   grid.appendChild(cell);
@@ -2343,6 +2380,8 @@ function renderDayPanel(dateStr){
   const dayLabel2=dayLabel.charAt(0).toUpperCase()+dayLabel.slice(1);
 
   const seancesOfDay=state.seances.filter(s=>s.date&&s.date.slice(0,10)===dateStr);
+  const bookingsOfDay=(state.reservations||[]).filter(r=>r.date&&r.date.slice(0,10)===dateStr);
+  const hasAnything = seancesOfDay.length > 0 || bookingsOfDay.length > 0;
 
   panel.innerHTML=`
     <div class="day-panel">
@@ -2351,19 +2390,26 @@ function renderDayPanel(dateStr){
         <button class="day-panel-close" id="dayPanelCloseBtn">✕</button>
       </div>
       <div class="day-panel-body">
-        ${seancesOfDay.length===0
-          ? '<p style="font-size:13px;color:var(--brown-soft);margin:0 0 14px;">Aucune séance ce jour.</p>'
-          : seancesOfDay.map(s=>{
-              const eleve=state.eleves.find(e=>e.id===s.eleve_id);
-              const name=eleve?`${eleve.prenom||''} ${eleve.nom||''}`.trim():'Élève inconnu';
-              return `<div class="day-seance-item" data-eleve="${s.eleve_id}">
-                <div>
-                  <div class="day-seance-student">${escapeHtml(name)}</div>
-                  <div class="day-seance-type">${escapeHtml(s.type_cours||'Coaching vocal')}</div>
-                </div>
-                <span style="font-size:11px;color:var(--brown-soft);">→</span>
-              </div>`;
-            }).join('')}
+        ${!hasAnything ? '<p style="font-size:13px;color:var(--brown-soft);margin:0 0 14px;">Aucune séance ce jour.</p>' : ''}
+        ${bookingsOfDay.map(r=>`
+          <div class="day-seance-item" style="border-left:3px solid #2c64a0;">
+            <div>
+              <div class="day-seance-student">${escapeHtml(r.eleve_nom||'Élève')}</div>
+              <div class="day-seance-type" style="color:#2c64a0;">📅 ${escapeHtml(r.session_type_nom||'RDV')} · ${r.heure_debut?r.heure_debut.slice(0,5):''}</div>
+            </div>
+            <span style="font-size:10px;background:rgba(44,100,160,0.12);color:#2c64a0;padding:2px 7px;border-radius:999px;font-weight:700;">RDV</span>
+          </div>`).join('')}
+        ${seancesOfDay.map(s=>{
+          const eleve=state.eleves.find(e=>e.id===s.eleve_id);
+          const name=eleve?`${eleve.prenom||''} ${eleve.nom||''}`.trim():'Élève inconnu';
+          return `<div class="day-seance-item" data-eleve="${s.eleve_id}">
+            <div>
+              <div class="day-seance-student">${escapeHtml(name)}</div>
+              <div class="day-seance-type">${escapeHtml(s.type_cours||'Coaching vocal')}</div>
+            </div>
+            <span style="font-size:11px;color:var(--brown-soft);">→</span>
+          </div>`;
+        }).join('')}
         <div class="day-panel-add">
           <button class="btn-add" id="dayAddSeanceBtn" style="font-size:13px;">+ Ajouter une séance</button>
           <div class="day-add-form hidden" id="dayAddForm">
