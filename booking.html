@@ -98,7 +98,26 @@
 
 <header>
   <img src="https://mozo.coach/mozo-logo-email.png" alt="mɔzɔ">
-  <span style="font-size:11px;color:var(--soft);">Réservation en ligne</span>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <select id="tzSelector" style="font-size:11px;border:1px solid var(--border);border-radius:7px;padding:5px 8px;background:#fff;color:var(--soft);font-family:inherit;cursor:pointer;" onchange="onTzChange(this.value)">
+      <option value="Europe/Paris">🕐 Paris</option>
+      <option value="Africa/Dakar">🕐 Dakar</option>
+      <option value="Europe/London">🕐 Londres</option>
+      <option value="America/New_York">🕐 New York</option>
+      <option value="America/Chicago">🕐 Chicago</option>
+      <option value="America/Los_Angeles">🕐 Los Angeles</option>
+      <option value="America/Toronto">🕐 Toronto</option>
+      <option value="America/Guadeloupe">🕐 Guadeloupe</option>
+      <option value="America/Martinique">🕐 Martinique</option>
+      <option value="Africa/Abidjan">🕐 Abidjan</option>
+      <option value="Africa/Casablanca">🕐 Casablanca</option>
+      <option value="Africa/Nairobi">🕐 Nairobi</option>
+      <option value="Indian/Reunion">🕐 Réunion</option>
+      <option value="Indian/Mauritius">🕐 Maurice</option>
+      <option value="Pacific/Tahiti">🕐 Tahiti</option>
+    </select>
+    <span style="font-size:11px;color:var(--soft);">Réservation en ligne</span>
+  </div>
 </header>
 
 <div class="container" id="app">
@@ -118,6 +137,17 @@ const app = document.getElementById("app");
 
 const MONTH_NAMES = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const DAY_NAMES = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+
+let displayTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris';
+
+function onTzChange(tz){
+  displayTz = tz;
+  // Si des créneaux sont déjà affichés, les re-rendre
+  if(state.selectedDate && state.availableSlots.length > 0){
+    renderSlots(state.selectedDate, tz);
+  }
+}
+window.onTzChange = onTzChange;
 
 let state = {
   sessionTypes: [],
@@ -157,9 +187,19 @@ async function init() {
     }
     state.sessionTypes = types;
 
-    const profile = await sbGet("profiles", `id=eq.${COACH_ID}&select=prenom,nom`);
+    const profile = await sbGet("profiles", `id=eq.${COACH_ID}&select=prenom,nom,timezone`);
     if (profile && profile[0]) {
       state.coachName = `${profile[0].prenom||""} ${profile[0].nom||""}`.trim();
+      // Initialiser le fuseau avec celui du coach
+      if(profile[0].timezone){
+        displayTz = profile[0].timezone;
+        const tzSel = document.getElementById('tzSelector');
+        if(tzSel){
+          // Chercher l'option correspondante
+          const opt = [...tzSel.options].find(o => o.value === profile[0].timezone);
+          if(opt) tzSel.value = profile[0].timezone;
+        }
+      }
     }
 
     renderTypeSelection();
@@ -509,7 +549,7 @@ function renderSlots(date, timezone) {
                 </div>`;
               }).join("")}
             </div>
-            ${timezone ? `<p style="font-size:11px;color:var(--soft);margin-top:10px;">Horaires en ${timezone}</p>` : ""}`
+            ${timezone ? `<p style="font-size:11px;color:var(--soft);margin-top:10px;">Horaires affichés en <strong>${displayTz}</strong></p>` : ""}`
         }
       </div>
     </div>
