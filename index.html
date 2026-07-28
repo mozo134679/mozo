@@ -1627,13 +1627,37 @@
 
         <!-- Étape 1 : Type de séance -->
         <div id="dbStep1">
-          <label>Type de séance</label>
-          <select id="db-type-select" style="width:100%;background:var(--bg);border:1px solid var(--taupe-light);color:var(--brown);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px;">
-            <option value="">Choisir…</option>
-          </select>
+          <div class="form-row" style="margin-bottom:10px;">
+            <div>
+              <label>Type de séance</label>
+              <select id="db-type-select" style="width:100%;background:var(--bg);border:1px solid var(--taupe-light);color:var(--brown);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;">
+                <option value="">Choisir…</option>
+              </select>
+            </div>
+            <div>
+              <label>Fuseau horaire</label>
+              <select id="db-tz-select" style="width:100%;background:var(--bg);border:1px solid var(--taupe-light);color:var(--brown);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;">
+                <option value="Europe/Paris">Paris (UTC+1/+2)</option>
+                <option value="Africa/Dakar">Dakar (UTC+0)</option>
+                <option value="Europe/London">Londres (UTC+0/+1)</option>
+                <option value="America/New_York">New York (UTC-5/-4)</option>
+                <option value="America/Chicago">Chicago (UTC-6/-5)</option>
+                <option value="America/Los_Angeles">Los Angeles (UTC-8/-7)</option>
+                <option value="America/Toronto">Toronto (UTC-5/-4)</option>
+                <option value="America/Guadeloupe">Guadeloupe (UTC-4)</option>
+                <option value="America/Martinique">Martinique (UTC-4)</option>
+                <option value="Africa/Abidjan">Abidjan (UTC+0)</option>
+                <option value="Africa/Casablanca">Casablanca (UTC+0/+1)</option>
+                <option value="Africa/Nairobi">Nairobi (UTC+3)</option>
+                <option value="Indian/Reunion">Réunion (UTC+4)</option>
+                <option value="Indian/Mauritius">Maurice (UTC+4)</option>
+                <option value="Pacific/Tahiti">Tahiti (UTC-10)</option>
+              </select>
+            </div>
+          </div>
           <label>Date</label>
           <div id="dbDateList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:120px;overflow-y:auto;"></div>
-          <label>Créneau</label>
+          <label>Créneau <span id="dbTzLabel" style="font-weight:400;font-size:11px;color:var(--brown-soft);"></span></label>
           <div id="dbSlotList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
           <div class="form-actions">
             <button class="btn-cancel" id="cancelDrawerBookBtn">Annuler</button>
@@ -2558,7 +2582,24 @@ el('drawerBookBtn').onclick = async () => {
   typeSelect.innerHTML = '<option value="">Choisir…</option>' +
     (types||[]).map(t => `<option value="${t.id}" data-duree="${t.duree_minutes}">${escapeHtml(t.nom)} (${t.duree_minutes} min)</option>`).join('');
 
-  // Peupler les dates (30 prochains jours avec dispo)
+  // Initialiser le fuseau horaire avec celui du coach
+  const tzSelect = el('db-tz-select');
+  if(state.profile?.timezone){
+    const opt = [...tzSelect.options].find(o => o.value === state.profile.timezone);
+    if(opt) tzSelect.value = state.profile.timezone;
+  }
+  updateDbTzLabel();
+
+  // Handler changement de fuseau
+  tzSelect.onchange = () => {
+    updateDbTzLabel();
+    // Si un créneau était affiché, le raffraîchir
+    if(dbSelectedDate && el('db-type-select').value){
+      loadDbSlots(dbSelectedDate, el('db-type-select').value);
+    }
+  };
+
+  // Peupler les dates
   dbSelectedDate = null; dbSelectedSlot = null;
   el('dbSlotList').innerHTML = '';
   el('confirmDrawerBookBtn').disabled = true;
@@ -2568,6 +2609,12 @@ el('drawerBookBtn').onclick = async () => {
   panel.classList.remove('hidden');
   panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
 };
+
+function updateDbTzLabel(){
+  const tzSelect = el('db-tz-select');
+  const lbl = el('dbTzLabel');
+  if(lbl && tzSelect) lbl.textContent = `— ${tzSelect.options[tzSelect.selectedIndex]?.text || ''}`;
+}
 
 async function loadDbDates(types){
   const typeId = el('db-type-select').value;
